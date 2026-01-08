@@ -41,7 +41,7 @@ powershell -c "irm bun.sh/install.ps1|iex"
 ### 2. Clone the Repository
 
 ```bash
-git clone https://github.com/anthropics/figma-mcp-extended.git
+git clone https://github.com/ismailsaleekh/figma-mcp-extended.git
 cd figma-mcp-extended
 bun install
 ```
@@ -226,8 +226,9 @@ figma-mcp-extended/
 ├── code.js            # Plugin backend logic (built)
 ├── src/               # TypeScript source files
 │   ├── index.ts       # Main entry point
-│   ├── types.ts       # Type definitions
-│   └── commands/      # Command implementations
+│   ├── types/         # Type definitions
+│   ├── commands/      # Command implementations
+│   └── helpers/       # Utility functions
 ├── ui.html            # Plugin user interface
 ├── socket.ts          # WebSocket server
 ├── docs/              # API documentation
