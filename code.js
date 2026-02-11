@@ -2956,6 +2956,7 @@
         layoutSizingHorizontal = "FIXED",
         layoutSizingVertical = "FIXED",
         itemSpacing = 0,
+        counterAxisSpacing,
         cornerRadius,
         corners
       } = params || {};
@@ -2979,6 +2980,9 @@
         frame.layoutSizingHorizontal = layoutSizingHorizontal;
         frame.layoutSizingVertical = layoutSizingVertical;
         frame.itemSpacing = itemSpacing;
+        if (counterAxisSpacing !== void 0 && layoutWrap === "WRAP") {
+          frame.counterAxisSpacing = counterAxisSpacing;
+        }
       }
       if (cornerRadius !== void 0) {
         if (corners) {
