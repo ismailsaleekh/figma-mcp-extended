@@ -44,6 +44,7 @@ interface FrameResult {
   fills: readonly Paint[] | typeof figma.mixed;
   strokes: readonly Paint[];
   strokeWeight: number;
+  clipsContent: boolean;
   layoutMode: "NONE" | "HORIZONTAL" | "VERTICAL";
   layoutWrap: "NO_WRAP" | "WRAP";
   parentId?: string;
@@ -109,6 +110,7 @@ export async function createRectangle(
     height = 100,
     name = "Rectangle",
     parentId,
+    fillColor,
   } = params || {};
 
   const rect = figma.createRectangle();
@@ -116,6 +118,10 @@ export async function createRectangle(
   rect.y = y;
   rect.resize(width, height);
   rect.name = name;
+
+  if (fillColor) {
+    rect.fills = [createSolidPaint(fillColor)];
+  }
 
   if (parentId) {
     const parentNode = await figma.getNodeByIdAsync(parentId);
@@ -157,6 +163,7 @@ export async function createFrame(
     fillColor,
     strokeColor,
     strokeWeight,
+    clipsContent,
     layoutMode = "NONE",
     layoutWrap = "NO_WRAP",
     paddingTop = 10,
@@ -175,6 +182,11 @@ export async function createFrame(
   frame.y = y;
   frame.resize(width, height);
   frame.name = name;
+
+  // Set clipsContent if explicitly provided
+  if (clipsContent !== undefined) {
+    frame.clipsContent = clipsContent;
+  }
 
   // Set layout mode if provided
   if (layoutMode !== "NONE") {
@@ -229,6 +241,7 @@ export async function createFrame(
     fills: frame.fills,
     strokes: frame.strokes,
     strokeWeight: typeof frame.strokeWeight === "number" ? frame.strokeWeight : 0,
+    clipsContent: frame.clipsContent,
     layoutMode: frame.layoutMode as "NONE" | "HORIZONTAL" | "VERTICAL",
     layoutWrap: frame.layoutWrap,
     parentId: frame.parent ? frame.parent.id : undefined,

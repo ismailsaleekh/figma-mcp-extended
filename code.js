@@ -2898,13 +2898,17 @@
         width = 100,
         height = 100,
         name = "Rectangle",
-        parentId
+        parentId,
+        fillColor
       } = params || {};
       const rect = figma.createRectangle();
       rect.x = x;
       rect.y = y;
       rect.resize(width, height);
       rect.name = name;
+      if (fillColor) {
+        rect.fills = [createSolidPaint(fillColor)];
+      }
       if (parentId) {
         const parentNode = yield figma.getNodeByIdAsync(parentId);
         if (!parentNode) {
@@ -2940,6 +2944,7 @@
         fillColor,
         strokeColor,
         strokeWeight,
+        clipsContent,
         layoutMode = "NONE",
         layoutWrap = "NO_WRAP",
         paddingTop = 10,
@@ -2957,6 +2962,9 @@
       frame.y = y;
       frame.resize(width, height);
       frame.name = name;
+      if (clipsContent !== void 0) {
+        frame.clipsContent = clipsContent;
+      }
       if (layoutMode !== "NONE") {
         frame.layoutMode = layoutMode;
         frame.layoutWrap = layoutWrap;
@@ -3001,6 +3009,7 @@
         fills: frame.fills,
         strokes: frame.strokes,
         strokeWeight: typeof frame.strokeWeight === "number" ? frame.strokeWeight : 0,
+        clipsContent: frame.clipsContent,
         layoutMode: frame.layoutMode,
         layoutWrap: frame.layoutWrap,
         parentId: frame.parent ? frame.parent.id : void 0

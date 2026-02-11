@@ -12,6 +12,7 @@ export interface CreateRectangleParams extends ParamsBase {
   height?: number;
   name?: string;
   parentId?: string;
+  fillColor?: RGBA;
 }
 
 /**
@@ -27,6 +28,7 @@ export interface CreateFrameParams extends ParamsBase {
   fillColor?: RGBA;
   strokeColor?: RGBA;
   strokeWeight?: number;
+  clipsContent?: boolean;
   layoutMode?: "NONE" | "HORIZONTAL" | "VERTICAL";
   layoutWrap?: "NO_WRAP" | "WRAP";
   paddingTop?: number;
