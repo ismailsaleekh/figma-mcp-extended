@@ -4019,6 +4019,43 @@
       };
     });
   }
+  function setLayoutPositioning(params) {
+    return __async(this, null, function* () {
+      const { nodeId, positioning, x, y } = params;
+      const node = yield figma.getNodeByIdAsync(nodeId);
+      if (!node) {
+        throw new Error(`Node with ID ${nodeId} not found`);
+      }
+      if (!("layoutPositioning" in node)) {
+        throw new Error(`Node type ${node.type} does not support layoutPositioning`);
+      }
+      const sceneNode = node;
+      const parent = node.parent;
+      if (!parent || !isAutoLayoutFrame(parent) || parent.layoutMode === "NONE") {
+        throw new Error("layoutPositioning can only be set on children of auto-layout frames");
+      }
+      if (!["ABSOLUTE", "AUTO"].includes(positioning)) {
+        throw new Error("Invalid positioning value. Must be 'ABSOLUTE' or 'AUTO'.");
+      }
+      sceneNode.layoutPositioning = positioning;
+      if (positioning === "ABSOLUTE" && (x !== void 0 || y !== void 0)) {
+        if (x !== void 0)
+          sceneNode.x = x;
+        if (y !== void 0)
+          sceneNode.y = y;
+      }
+      return {
+        id: node.id,
+        name: node.name,
+        layoutPositioning: sceneNode.layoutPositioning,
+        x: sceneNode.x,
+        y: sceneNode.y,
+        parentId: parent.id,
+        parentName: parent.name,
+        parentLayoutMode: parent.layoutMode
+      };
+    });
+  }
   var init_layout = __esm({
     "src/commands/layout.ts"() {
       "use strict";
@@ -6403,6 +6440,9 @@
       function isSetMinMaxSizeParams(params) {
         return hasString(params, "nodeId");
       }
+      function isSetLayoutPositioningParams(params) {
+        return hasString(params, "nodeId") && hasString(params, "positioning");
+      }
       function isScanTextNodesParams(params) {
         return hasString(params, "nodeId");
       }
@@ -6704,6 +6744,11 @@
                 throw new Error("Missing required parameter: nodeId");
               }
               return yield setMinMaxSize(params);
+            case "set_layout_positioning":
+              if (!params || !isSetLayoutPositioningParams(params)) {
+                throw new Error("Missing required parameters: nodeId, positioning");
+              }
+              return yield setLayoutPositioning(params);
             case "scan_text_nodes":
               if (!params || !isScanTextNodesParams(params)) {
                 throw new Error("Missing required parameter: nodeId");
