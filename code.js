@@ -2958,7 +2958,9 @@
         itemSpacing = 0,
         counterAxisSpacing,
         cornerRadius,
-        corners
+        corners,
+        opacity,
+        effects
       } = params || {};
       const frame = figma.createFrame();
       frame.x = x;
@@ -3007,6 +3009,31 @@
       if (strokeWeight !== void 0) {
         frame.strokeWeight = strokeWeight;
       }
+      if (opacity !== void 0) {
+        frame.opacity = opacity;
+      }
+      if (effects && Array.isArray(effects) && effects.length > 0) {
+        frame.effects = effects.map((effect) => {
+          var _a, _b, _c;
+          if (effect.type === "DROP_SHADOW" || effect.type === "INNER_SHADOW") {
+            return {
+              type: effect.type,
+              visible: effect.visible !== false,
+              radius: effect.radius,
+              color: effect.color ? { r: effect.color.r, g: effect.color.g, b: effect.color.b, a: (_a = effect.color.a) != null ? _a : 1 } : { r: 0, g: 0, b: 0, a: 0.25 },
+              offset: (_b = effect.offset) != null ? _b : { x: 0, y: 4 },
+              spread: (_c = effect.spread) != null ? _c : 0,
+              blendMode: "NORMAL"
+            };
+          } else {
+            return {
+              type: effect.type,
+              visible: effect.visible !== false,
+              radius: effect.radius
+            };
+          }
+        });
+      }
       if (parentId) {
         const parentNode = yield figma.getNodeByIdAsync(parentId);
         if (!parentNode) {
@@ -3033,6 +3060,8 @@
         layoutMode: frame.layoutMode,
         layoutWrap: frame.layoutWrap,
         cornerRadius: frame.cornerRadius,
+        opacity: frame.opacity,
+        effects: frame.effects,
         parentId: frame.parent ? frame.parent.id : void 0
       };
     });
