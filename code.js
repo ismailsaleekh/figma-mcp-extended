@@ -3984,6 +3984,41 @@
       };
     });
   }
+  function setMinMaxSize(params) {
+    return __async(this, null, function* () {
+      const { nodeId, minWidth, maxWidth, minHeight, maxHeight } = params;
+      if (minWidth === void 0 && maxWidth === void 0 && minHeight === void 0 && maxHeight === void 0) {
+        throw new Error("At least one of minWidth, maxWidth, minHeight, or maxHeight must be provided");
+      }
+      const node = yield figma.getNodeByIdAsync(nodeId);
+      if (!node) {
+        throw new Error(`Node with ID ${nodeId} not found`);
+      }
+      if (!isAutoLayoutFrame(node)) {
+        throw new Error(`Node type ${node.type} does not support min/max size constraints`);
+      }
+      if (node.layoutMode === "NONE") {
+        throw new Error("Min/max size constraints can only be set on auto-layout frames");
+      }
+      if (minWidth !== void 0)
+        node.minWidth = minWidth;
+      if (maxWidth !== void 0)
+        node.maxWidth = maxWidth;
+      if (minHeight !== void 0)
+        node.minHeight = minHeight;
+      if (maxHeight !== void 0)
+        node.maxHeight = maxHeight;
+      return {
+        id: node.id,
+        name: node.name,
+        minWidth: node.minWidth,
+        maxWidth: node.maxWidth,
+        minHeight: node.minHeight,
+        maxHeight: node.maxHeight,
+        layoutMode: node.layoutMode
+      };
+    });
+  }
   var init_layout = __esm({
     "src/commands/layout.ts"() {
       "use strict";
@@ -6365,6 +6400,9 @@
       function isSetItemSpacingParams(params) {
         return hasString(params, "nodeId");
       }
+      function isSetMinMaxSizeParams(params) {
+        return hasString(params, "nodeId");
+      }
       function isScanTextNodesParams(params) {
         return hasString(params, "nodeId");
       }
@@ -6661,6 +6699,11 @@
                 throw new Error("Missing required parameter: nodeId");
               }
               return yield setItemSpacing(params);
+            case "set_min_max_size":
+              if (!params || !isSetMinMaxSizeParams(params)) {
+                throw new Error("Missing required parameter: nodeId");
+              }
+              return yield setMinMaxSize(params);
             case "scan_text_nodes":
               if (!params || !isScanTextNodesParams(params)) {
                 throw new Error("Missing required parameter: nodeId");
