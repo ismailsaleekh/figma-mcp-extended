@@ -1,6 +1,6 @@
 # Test Checklist
 
-This document tracks test coverage for all 73 exported commands and helper functions.
+This document tracks test coverage for all 74 exported commands and helper functions.
 
 ---
 
@@ -57,6 +57,7 @@ This document tracks test coverage for all 73 exported commands and helper funct
 | `setAxisAlign(params)` | Set primary/counter axis alignment | `layout/set_axis_align.md` | [x] |
 | `setLayoutSizing(params)` | Set layout sizing (FIXED/HUG/FILL) | `layout/set_layout_sizing.md` | [x] |
 | `setItemSpacing(params)` | Set item and counter-axis spacing | `layout/set_item_spacing.md` | [x] |
+| `setMinMaxSize(params)` | Set min/max width/height constraints | `layout/set_min_max_size.md` | [ ] |
 
 ### Text Commands (src/commands/text.ts)
 
@@ -189,7 +190,7 @@ This document tracks test coverage for all 73 exported commands and helper funct
 | Document Commands | 8 | 8 | 0 |
 | Creation Commands | 11 | 11 | 0 |
 | Styling Commands | 8 | 8 | 0 |
-| Layout Commands | 5 | 5 | 0 |
+| Layout Commands | 6 | 5 | 1 |
 | Text Commands | 9 | 9 | 0 |
 | Image Commands | 3 | 3 | 0 |
 | Component Commands | 5 | 5 | 0 |
@@ -199,7 +200,7 @@ This document tracks test coverage for all 73 exported commands and helper funct
 | Extraction Commands | 6 | 6 | 0 |
 | Scanning Commands | 2 | 2 | 0 |
 | Node Operation Commands | 8 | 8 | 0 |
-| **Total** | **73** | **73** | **0** |
+| **Total** | **74** | **73** | **1** |
 
 ---
 

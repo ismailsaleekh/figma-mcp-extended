@@ -87,3 +87,34 @@ Set spacing between children in auto-layout.
 | `counterAxisSpacing` | number | No | Gap for wrapped items (requires layoutWrap: "WRAP") |
 
 **Returns**: `{ id, name, itemSpacing, counterAxisSpacing, layoutMode, layoutWrap }`
+
+---
+
+## `set_min_max_size`
+
+Set min/max size constraints on an auto-layout frame.
+
+**Parameters**:
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `nodeId` | string | Yes | Target frame ID |
+| `minWidth` | number | No | Minimum width constraint |
+| `maxWidth` | number | No | Maximum width constraint |
+| `minHeight` | number | No | Minimum height constraint |
+| `maxHeight` | number | No | Maximum height constraint |
+
+**Note**: At least one of the four constraint values must be provided. Frame must have auto-layout enabled (layoutMode !== "NONE").
+
+**Example**:
+```json
+{
+  "command": "set_min_max_size",
+  "params": {
+    "nodeId": "4371:50004",
+    "minWidth": 280,
+    "maxWidth": 360
+  }
+}
+```
+
+**Returns**: `{ id, name, minWidth, maxWidth, minHeight, maxHeight, layoutMode }`
