@@ -1,6 +1,7 @@
 // src/types/creation.ts
 
 import type { RGBA, ParamsBase } from "./common";
+import type { EffectConfig } from "./styling";
 
 /**
  * Rectangle creation parameters
@@ -46,6 +47,10 @@ export interface CreateFrameParams extends ParamsBase {
   cornerRadius?: number;
   /** Which corners receive the radius: [topLeft, topRight, bottomRight, bottomLeft]. Defaults to all true. */
   corners?: [boolean, boolean, boolean, boolean];
+  /** Node opacity (0–1). Default: 1. */
+  opacity?: number;
+  /** Effects (shadows, blur) to apply on creation. Same format as setEffects. */
+  effects?: EffectConfig[];
 }
 
 /**

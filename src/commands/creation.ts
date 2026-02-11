@@ -22,6 +22,7 @@ import type {
   CreatePolygonParams,
   CreateVectorParams,
   CreateSvgParams,
+  EffectConfig,
 } from "../types";
 
 interface RectangleResult {
@@ -48,6 +49,8 @@ interface FrameResult {
   layoutMode: "NONE" | "HORIZONTAL" | "VERTICAL";
   layoutWrap: "NO_WRAP" | "WRAP";
   cornerRadius: number | typeof figma.mixed;
+  opacity: number;
+  effects: readonly Effect[];
   parentId?: string;
 }
 
@@ -179,6 +182,8 @@ export async function createFrame(
     counterAxisSpacing,
     cornerRadius,
     corners,
+    opacity,
+    effects,
   } = params || {};
 
   const frame = figma.createFrame();
@@ -236,6 +241,36 @@ export async function createFrame(
     frame.strokeWeight = strokeWeight;
   }
 
+  // Set opacity if provided
+  if (opacity !== undefined) {
+    frame.opacity = opacity;
+  }
+
+  // Set effects (shadows, blur) if provided
+  if (effects && Array.isArray(effects) && effects.length > 0) {
+    frame.effects = effects.map((effect: EffectConfig) => {
+      if (effect.type === "DROP_SHADOW" || effect.type === "INNER_SHADOW") {
+        return {
+          type: effect.type,
+          visible: effect.visible !== false,
+          radius: effect.radius,
+          color: effect.color
+            ? { r: effect.color.r, g: effect.color.g, b: effect.color.b, a: effect.color.a ?? 1 }
+            : { r: 0, g: 0, b: 0, a: 0.25 },
+          offset: effect.offset ?? { x: 0, y: 4 },
+          spread: effect.spread ?? 0,
+          blendMode: "NORMAL" as const,
+        };
+      } else {
+        return {
+          type: effect.type,
+          visible: effect.visible !== false,
+          radius: effect.radius,
+        } as Effect;
+      }
+    });
+  }
+
   // Append to parent
   if (parentId) {
     const parentNode = await figma.getNodeByIdAsync(parentId);
@@ -264,6 +299,8 @@ export async function createFrame(
     layoutMode: frame.layoutMode as "NONE" | "HORIZONTAL" | "VERTICAL",
     layoutWrap: frame.layoutWrap,
     cornerRadius: frame.cornerRadius,
+    opacity: frame.opacity,
+    effects: frame.effects,
     parentId: frame.parent ? frame.parent.id : undefined,
   };
 }
