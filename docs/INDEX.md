@@ -1,6 +1,6 @@
 # Figma MCP Extended API
 
-WebSocket-based API for programmatic access to Figma designs. **75 commands** across 14 categories.
+WebSocket-based API for programmatic access to Figma designs. **76 commands** across 14 categories.
 
 **[Connection Guide](connection.md)** | **[Color Format](reference/color-format.md)** | **[Node ID Format](reference/node-id-format.md)**
 
@@ -51,7 +51,7 @@ WebSocket-based API for programmatic access to Figma designs. **75 commands** ac
 | [`set_stroke_style`](commands/03-styling.md#set_stroke_style) | Set stroke style (dash, cap, join) |
 | [`set_corner_radius`](commands/03-styling.md#set_corner_radius) | Set corner radius |
 
-### Text (9)
+### Text (10)
 
 | Command | Description |
 |---------|-------------|
@@ -64,6 +64,7 @@ WebSocket-based API for programmatic access to Figma designs. **75 commands** ac
 | [`set_text_alignment`](commands/04-text.md#set_text_alignment) | Set text alignment |
 | [`set_line_height`](commands/04-text.md#set_line_height) | Set line height |
 | [`set_letter_spacing`](commands/04-text.md#set_letter_spacing) | Set letter spacing |
+| [`set_text_truncation`](commands/04-text.md#set_text_truncation) | Set text truncation (ellipsis after N lines) |
 
 ### Node Operations (10)
 
@@ -164,7 +165,7 @@ WebSocket-based API for programmatic access to Figma designs. **75 commands** ac
 | Document & Pages | 8 |
 | Shape Creation | 12 |
 | Styling | 8 |
-| Text | 9 |
+| Text | 10 |
 | Node Operations | 10 |
 | Layout | 5 |
 | Components | 5 |
@@ -175,4 +176,4 @@ WebSocket-based API for programmatic access to Figma designs. **75 commands** ac
 | Extraction & Analysis | 6 |
 | Scanning | 1 |
 | Utility | 1 |
-| **Total** | **75** |
+| **Total** | **76** |

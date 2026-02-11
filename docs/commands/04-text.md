@@ -187,3 +187,30 @@ Set letter spacing on a text node.
 | `unit` | string | No | "PIXELS" | "PIXELS" or "PERCENT" |
 
 **Returns**: `{ id, name, letterSpacing }`
+
+---
+
+## `set_text_truncation`
+
+Set text truncation on a text node. Enables ellipsis (`...`) after a specified number of lines.
+
+**Parameters**:
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `nodeId` | string | Yes | Text node ID |
+| `maxLines` | number | Yes | Maximum number of visible lines (must be >= 1) |
+
+**Returns**: `{ id, name, textTruncation, maxLines }`
+
+**Example**:
+```json
+{
+  "command": "set_text_truncation",
+  "params": {
+    "nodeId": "123:456",
+    "maxLines": 2
+  }
+}
+```
+
+**Note**: Sets `textTruncation` to `"ENDING"` (ellipsis at end) and `maxLines` to the specified value. The font must be loaded before truncation can be applied — this is handled automatically.
