@@ -59,3 +59,16 @@ export interface SetMinMaxSizeParams extends ParamsBase {
   minHeight?: number;
   maxHeight?: number;
 }
+
+/**
+ * Layout positioning parameters.
+ * Sets a node to absolute positioning within its auto-layout parent,
+ * removing it from the layout flow. Used for FABs, badges, overlays,
+ * pagination dots, and other floating elements.
+ */
+export interface SetLayoutPositioningParams extends ParamsBase {
+  nodeId: string;
+  positioning: "ABSOLUTE" | "AUTO";
+  x?: number;
+  y?: number;
+}

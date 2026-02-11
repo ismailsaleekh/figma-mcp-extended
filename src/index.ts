@@ -29,6 +29,7 @@ import type {
   SetLayoutSizingParams,
   SetItemSpacingParams,
   SetMinMaxSizeParams,
+  SetLayoutPositioningParams,
   ScanTextNodesParams,
   SetTextContentParams,
   SetMultipleTextContentsParams,
@@ -159,6 +160,10 @@ function isSetItemSpacingParams(params: Record<string, unknown>): params is SetI
 
 function isSetMinMaxSizeParams(params: Record<string, unknown>): params is SetMinMaxSizeParams {
   return hasString(params, "nodeId");
+}
+
+function isSetLayoutPositioningParams(params: Record<string, unknown>): params is SetLayoutPositioningParams {
+  return hasString(params, "nodeId") && hasString(params, "positioning");
 }
 
 // Text params
@@ -537,6 +542,11 @@ async function handleCommand(
         throw new Error("Missing required parameter: nodeId");
       }
       return await layoutCommands.setMinMaxSize(params);
+    case "set_layout_positioning":
+      if (!params || !isSetLayoutPositioningParams(params)) {
+        throw new Error("Missing required parameters: nodeId, positioning");
+      }
+      return await layoutCommands.setLayoutPositioning(params);
 
     // Text commands
     case "scan_text_nodes":

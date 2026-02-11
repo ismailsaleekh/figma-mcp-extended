@@ -7,6 +7,7 @@ import type {
   SetLayoutSizingParams,
   SetItemSpacingParams,
   SetMinMaxSizeParams,
+  SetLayoutPositioningParams,
 } from "../types";
 
 type AutoLayoutFrame = FrameNode | ComponentNode | ComponentSetNode | InstanceNode;
@@ -232,5 +233,49 @@ export async function setMinMaxSize(params: SetMinMaxSizeParams) {
     minHeight: node.minHeight,
     maxHeight: node.maxHeight,
     layoutMode: node.layoutMode,
+  };
+}
+
+export async function setLayoutPositioning(params: SetLayoutPositioningParams) {
+  const { nodeId, positioning, x, y } = params;
+
+  const node = await figma.getNodeByIdAsync(nodeId);
+  if (!node) {
+    throw new Error(`Node with ID ${nodeId} not found`);
+  }
+
+  if (!("layoutPositioning" in node)) {
+    throw new Error(`Node type ${node.type} does not support layoutPositioning`);
+  }
+
+  const sceneNode = node as SceneNode & { layoutPositioning: "AUTO" | "ABSOLUTE" };
+
+  // Validate parent is an auto-layout frame
+  const parent = node.parent;
+  if (!parent || !isAutoLayoutFrame(parent) || parent.layoutMode === "NONE") {
+    throw new Error("layoutPositioning can only be set on children of auto-layout frames");
+  }
+
+  if (!["ABSOLUTE", "AUTO"].includes(positioning)) {
+    throw new Error("Invalid positioning value. Must be 'ABSOLUTE' or 'AUTO'.");
+  }
+
+  sceneNode.layoutPositioning = positioning;
+
+  // Optionally set x/y position within the parent
+  if (positioning === "ABSOLUTE" && (x !== undefined || y !== undefined)) {
+    if (x !== undefined) sceneNode.x = x;
+    if (y !== undefined) sceneNode.y = y;
+  }
+
+  return {
+    id: node.id,
+    name: node.name,
+    layoutPositioning: sceneNode.layoutPositioning,
+    x: sceneNode.x,
+    y: sceneNode.y,
+    parentId: parent.id,
+    parentName: parent.name,
+    parentLayoutMode: parent.layoutMode,
   };
 }
