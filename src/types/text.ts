@@ -111,3 +111,11 @@ export interface SetLetterSpacingParams extends ParamsBase {
   letterSpacing: number;
   unit?: "PIXELS" | "PERCENT";
 }
+
+/**
+ * Set text truncation parameters
+ */
+export interface SetTextTruncationParams extends ParamsBase {
+  nodeId: string;
+  maxLines: number;
+}

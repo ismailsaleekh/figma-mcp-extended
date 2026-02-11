@@ -11,6 +11,7 @@ import type {
   SetTextAlignmentParams,
   SetLineHeightParams,
   SetLetterSpacingParams,
+  SetTextTruncationParams,
 } from "../types";
 import { generateCommandId, sendProgressUpdate, delay } from "../helpers/progress";
 import { setCharacters, getFontStyle } from "../helpers/fonts";
@@ -520,5 +521,56 @@ export async function setLetterSpacing(params: SetLetterSpacingParams): Promise<
     id: textNode.id,
     name: textNode.name,
     letterSpacing: textNode.letterSpacing as LetterSpacing,
+  };
+}
+
+interface SetTextTruncationResult {
+  id: string;
+  name: string;
+  textTruncation: string;
+  maxLines: number;
+}
+
+/**
+ * Set text truncation on a text node (ellipsis after N lines)
+ */
+export async function setTextTruncation(params: SetTextTruncationParams): Promise<SetTextTruncationResult> {
+  const { nodeId, maxLines } = params;
+
+  if (!nodeId) {
+    throw new Error("Missing nodeId parameter");
+  }
+
+  if (maxLines === undefined || maxLines < 1) {
+    throw new Error("maxLines must be a positive integer");
+  }
+
+  const node = await figma.getNodeByIdAsync(nodeId);
+  if (!node) {
+    throw new Error(`Node not found with ID: ${nodeId}`);
+  }
+
+  if (node.type !== "TEXT") {
+    throw new Error(`Node is not a TEXT node: ${nodeId}`);
+  }
+
+  const textNode = node as TextNode;
+
+  // Load font before modifying
+  const currentFont = textNode.fontName;
+  if (currentFont !== figma.mixed) {
+    await figma.loadFontAsync(currentFont);
+  } else {
+    throw new Error("Cannot set text truncation on text with mixed fonts");
+  }
+
+  textNode.textTruncation = "ENDING";
+  textNode.maxLines = maxLines;
+
+  return {
+    id: textNode.id,
+    name: textNode.name,
+    textTruncation: textNode.textTruncation,
+    maxLines: textNode.maxLines as number,
   };
 }

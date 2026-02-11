@@ -37,6 +37,7 @@ import type {
   SetTextAlignmentParams,
   SetLineHeightParams,
   SetLetterSpacingParams,
+  SetTextTruncationParams,
   SetImageFillParams,
   ExportNodeAsImageParams,
   CreateComponentInstanceParams,
@@ -259,6 +260,10 @@ function isSetLineHeightParams(params: Record<string, unknown>): params is SetLi
 
 function isSetLetterSpacingParams(params: Record<string, unknown>): params is SetLetterSpacingParams {
   return hasString(params, "nodeId") && hasNumber(params, "letterSpacing");
+}
+
+function isSetTextTruncationParams(params: Record<string, unknown>): params is SetTextTruncationParams {
+  return hasString(params, "nodeId") && hasNumber(params, "maxLines");
 }
 
 // New creation params
@@ -569,6 +574,11 @@ async function handleCommand(
         throw new Error("Missing required parameters: nodeId, letterSpacing");
       }
       return await textCommands.setLetterSpacing(params);
+    case "set_text_truncation":
+      if (!params || !isSetTextTruncationParams(params)) {
+        throw new Error("Missing required parameters: nodeId, maxLines");
+      }
+      return await textCommands.setTextTruncation(params);
 
     // Image commands
     case "set_image_fill":
