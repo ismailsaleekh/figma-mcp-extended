@@ -51,10 +51,12 @@ Create a frame with optional auto-layout settings.
 | `layoutSizingHorizontal` | string | No | "FIXED" | "FIXED", "HUG", "FILL" |
 | `layoutSizingVertical` | string | No | "FIXED" | "FIXED", "HUG", "FILL" |
 | `itemSpacing` | number | No | 0 | Gap between children |
+| `cornerRadius` | number | No | - | Uniform corner radius (or per-corner if `corners` is provided) |
+| `corners` | boolean[4] | No | all true | Which corners receive the radius: `[topLeft, topRight, bottomRight, bottomLeft]` |
 
 **Note**: When `layoutMode` is `"HORIZONTAL"` or `"VERTICAL"`, padding defaults to **10px** on all sides if not explicitly specified. Pass `paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0` when zero padding is needed.
 
-**Returns**: `{ id, name, x, y, width, height, fills, strokes, strokeWeight, clipsContent, layoutMode, layoutWrap, parentId }`
+**Returns**: `{ id, name, x, y, width, height, fills, strokes, strokeWeight, clipsContent, layoutMode, layoutWrap, cornerRadius, parentId }`
 
 ---
 

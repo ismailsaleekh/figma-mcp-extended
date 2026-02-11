@@ -30,6 +30,8 @@ Creates a new frame node with optional auto-layout configuration, colors, and st
 | `layoutSizingHorizontal` | string | No | "FIXED" | "FIXED", "HUG", "FILL" |
 | `layoutSizingVertical` | string | No | "FIXED" | "FIXED", "HUG", "FILL" |
 | `itemSpacing` | number | No | 0 | Gap between children |
+| `cornerRadius` | number | No | - | Uniform corner radius (or per-corner if `corners` is provided) |
+| `corners` | boolean[4] | No | all true | Which corners receive the radius: `[topLeft, topRight, bottomRight, bottomLeft]` |
 
 ## Expected Response
 
@@ -46,6 +48,7 @@ Creates a new frame node with optional auto-layout configuration, colors, and st
   "strokeWeight": 0,
   "layoutMode": "NONE",
   "layoutWrap": "NO_WRAP",
+  "cornerRadius": 0,
   "parentId": "0:1"
 }
 ```
@@ -300,6 +303,63 @@ Creates a new frame node with optional auto-layout configuration, colors, and st
 
 ---
 
+### Test 10: Create Frame with Corner Radius
+
+**Purpose:** Verify uniform corner radius is applied on creation.
+
+**Command:**
+```javascript
+{
+  command: "create_frame",
+  params: {
+    width: 200,
+    height: 120,
+    cornerRadius: 12,
+    fillColor: { r: 0.95, g: 0.95, b: 0.95, a: 1 },
+    name: "Rounded Card"
+  }
+}
+```
+
+**Expected Result:**
+- Frame has `cornerRadius` of 12 on all four corners
+- All corners visually rounded equally
+
+**Verification Steps:**
+1. Check `cornerRadius` equals 12 in response
+2. Visually confirm all four corners are rounded in Figma
+
+---
+
+### Test 11: Create Frame with Partial Corner Radius
+
+**Purpose:** Verify per-corner radius (e.g., bottom sheet with only top corners rounded).
+
+**Command:**
+```javascript
+{
+  command: "create_frame",
+  params: {
+    width: 393,
+    height: 400,
+    cornerRadius: 20,
+    corners: [true, true, false, false],
+    fillColor: { r: 1, g: 1, b: 1, a: 1 },
+    name: "Bottom Sheet"
+  }
+}
+```
+
+**Expected Result:**
+- Top-left and top-right corners have radius 20
+- Bottom-left and bottom-right corners have radius 0
+
+**Verification Steps:**
+1. Visually confirm only top corners are rounded in Figma
+2. Inspect node in Figma — topLeftRadius and topRightRadius should be 20, bottomLeftRadius and bottomRightRadius should be 0
+
+---
+
 ## Sample Test Script
 
 ```javascript
@@ -430,6 +490,8 @@ setTimeout(() => ws.close(), 60000);
 - [ ] Layout sizing works (FIXED, HUG, FILL) *(not tested)*
 - [x] Item spacing applied
 - [ ] Nested frame creation works *(not tested)*
+- [ ] Uniform corner radius applied *(not tested)*
+- [ ] Per-corner radius applied *(not tested)*
 - [x] Response contains all expected fields
 
 **Test Run:** 2025-12-25 | **Result:** 4/4 PASSED
