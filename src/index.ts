@@ -28,6 +28,7 @@ import type {
   SetAxisAlignParams,
   SetLayoutSizingParams,
   SetItemSpacingParams,
+  SetMinMaxSizeParams,
   ScanTextNodesParams,
   SetTextContentParams,
   SetMultipleTextContentsParams,
@@ -153,6 +154,10 @@ function isSetLayoutSizingParams(params: Record<string, unknown>): params is Set
 }
 
 function isSetItemSpacingParams(params: Record<string, unknown>): params is SetItemSpacingParams {
+  return hasString(params, "nodeId");
+}
+
+function isSetMinMaxSizeParams(params: Record<string, unknown>): params is SetMinMaxSizeParams {
   return hasString(params, "nodeId");
 }
 
@@ -527,6 +532,11 @@ async function handleCommand(
         throw new Error("Missing required parameter: nodeId");
       }
       return await layoutCommands.setItemSpacing(params);
+    case "set_min_max_size":
+      if (!params || !isSetMinMaxSizeParams(params)) {
+        throw new Error("Missing required parameter: nodeId");
+      }
+      return await layoutCommands.setMinMaxSize(params);
 
     // Text commands
     case "scan_text_nodes":

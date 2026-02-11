@@ -6,6 +6,7 @@ import type {
   SetAxisAlignParams,
   SetLayoutSizingParams,
   SetItemSpacingParams,
+  SetMinMaxSizeParams,
 } from "../types";
 
 type AutoLayoutFrame = FrameNode | ComponentNode | ComponentSetNode | InstanceNode;
@@ -195,5 +196,41 @@ export async function setItemSpacing(params: SetItemSpacingParams) {
     counterAxisSpacing: node.counterAxisSpacing,
     layoutMode: node.layoutMode,
     layoutWrap: node.layoutWrap,
+  };
+}
+
+export async function setMinMaxSize(params: SetMinMaxSizeParams) {
+  const { nodeId, minWidth, maxWidth, minHeight, maxHeight } = params;
+
+  if (minWidth === undefined && maxWidth === undefined && minHeight === undefined && maxHeight === undefined) {
+    throw new Error("At least one of minWidth, maxWidth, minHeight, or maxHeight must be provided");
+  }
+
+  const node = await figma.getNodeByIdAsync(nodeId);
+  if (!node) {
+    throw new Error(`Node with ID ${nodeId} not found`);
+  }
+
+  if (!isAutoLayoutFrame(node)) {
+    throw new Error(`Node type ${node.type} does not support min/max size constraints`);
+  }
+
+  if (node.layoutMode === "NONE") {
+    throw new Error("Min/max size constraints can only be set on auto-layout frames");
+  }
+
+  if (minWidth !== undefined) node.minWidth = minWidth;
+  if (maxWidth !== undefined) node.maxWidth = maxWidth;
+  if (minHeight !== undefined) node.minHeight = minHeight;
+  if (maxHeight !== undefined) node.maxHeight = maxHeight;
+
+  return {
+    id: node.id,
+    name: node.name,
+    minWidth: node.minWidth,
+    maxWidth: node.maxWidth,
+    minHeight: node.minHeight,
+    maxHeight: node.maxHeight,
+    layoutMode: node.layoutMode,
   };
 }

@@ -48,3 +48,14 @@ export interface SetItemSpacingParams extends ParamsBase {
   itemSpacing?: number;
   counterAxisSpacing?: number;
 }
+
+/**
+ * Min/max size constraint parameters
+ */
+export interface SetMinMaxSizeParams extends ParamsBase {
+  nodeId: string;
+  minWidth?: number;
+  maxWidth?: number;
+  minHeight?: number;
+  maxHeight?: number;
+}
