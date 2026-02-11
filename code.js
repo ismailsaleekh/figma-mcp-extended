@@ -4404,6 +4404,39 @@
       };
     });
   }
+  function setTextTruncation(params) {
+    return __async(this, null, function* () {
+      const { nodeId, maxLines } = params;
+      if (!nodeId) {
+        throw new Error("Missing nodeId parameter");
+      }
+      if (maxLines === void 0 || maxLines < 1) {
+        throw new Error("maxLines must be a positive integer");
+      }
+      const node = yield figma.getNodeByIdAsync(nodeId);
+      if (!node) {
+        throw new Error(`Node not found with ID: ${nodeId}`);
+      }
+      if (node.type !== "TEXT") {
+        throw new Error(`Node is not a TEXT node: ${nodeId}`);
+      }
+      const textNode = node;
+      const currentFont = textNode.fontName;
+      if (currentFont !== figma.mixed) {
+        yield figma.loadFontAsync(currentFont);
+      } else {
+        throw new Error("Cannot set text truncation on text with mixed fonts");
+      }
+      textNode.textTruncation = "ENDING";
+      textNode.maxLines = maxLines;
+      return {
+        id: textNode.id,
+        name: textNode.name,
+        textTruncation: textNode.textTruncation,
+        maxLines: textNode.maxLines
+      };
+    });
+  }
   var init_text = __esm({
     "src/commands/text.ts"() {
       "use strict";
@@ -6404,6 +6437,9 @@
       function isSetLetterSpacingParams(params) {
         return hasString(params, "nodeId") && hasNumber(params, "letterSpacing");
       }
+      function isSetTextTruncationParams(params) {
+        return hasString(params, "nodeId") && hasNumber(params, "maxLines");
+      }
       function isCreateVectorParams(params) {
         return hasArray(params, "vectorPaths");
       }
@@ -6670,6 +6706,11 @@
                 throw new Error("Missing required parameters: nodeId, letterSpacing");
               }
               return yield setLetterSpacing(params);
+            case "set_text_truncation":
+              if (!params || !isSetTextTruncationParams(params)) {
+                throw new Error("Missing required parameters: nodeId, maxLines");
+              }
+              return yield setTextTruncation(params);
             case "set_image_fill":
               if (!params || !isSetImageFillParams(params)) {
                 throw new Error("Missing required parameter: nodeId");
