@@ -17,6 +17,7 @@ Create a rectangle node.
 | `height` | number | No | 100 | Height in pixels |
 | `name` | string | No | "Rectangle" | Node name |
 | `parentId` | string | No | current page | Parent node ID |
+| `fillColor` | object | No | - | `{ r, g, b, a }` (0-1 range) |
 
 **Returns**: `{ id, name, x, y, width, height, parentId }`
 
@@ -38,6 +39,7 @@ Create a frame with optional auto-layout settings.
 | `fillColor` | object | No | - | `{ r, g, b, a }` (0-1 range) |
 | `strokeColor` | object | No | - | `{ r, g, b, a }` (0-1 range) |
 | `strokeWeight` | number | No | - | Stroke width |
+| `clipsContent` | boolean | No | - | Clip content that overflows the frame bounds |
 | `layoutMode` | string | No | "NONE" | "NONE", "HORIZONTAL", "VERTICAL" |
 | `layoutWrap` | string | No | "NO_WRAP" | "NO_WRAP", "WRAP" |
 | `paddingTop` | number | No | 10 | Top padding |
@@ -50,7 +52,9 @@ Create a frame with optional auto-layout settings.
 | `layoutSizingVertical` | string | No | "FIXED" | "FIXED", "HUG", "FILL" |
 | `itemSpacing` | number | No | 0 | Gap between children |
 
-**Returns**: `{ id, name, x, y, width, height, fills, strokes, strokeWeight, layoutMode, layoutWrap, parentId }`
+**Note**: When `layoutMode` is `"HORIZONTAL"` or `"VERTICAL"`, padding defaults to **10px** on all sides if not explicitly specified. Pass `paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0` when zero padding is needed.
+
+**Returns**: `{ id, name, x, y, width, height, fills, strokes, strokeWeight, clipsContent, layoutMode, layoutWrap, parentId }`
 
 ---
 
