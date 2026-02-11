@@ -2955,7 +2955,9 @@
         counterAxisAlignItems = "MIN",
         layoutSizingHorizontal = "FIXED",
         layoutSizingVertical = "FIXED",
-        itemSpacing = 0
+        itemSpacing = 0,
+        cornerRadius,
+        corners
       } = params || {};
       const frame = figma.createFrame();
       frame.x = x;
@@ -2977,6 +2979,20 @@
         frame.layoutSizingHorizontal = layoutSizingHorizontal;
         frame.layoutSizingVertical = layoutSizingVertical;
         frame.itemSpacing = itemSpacing;
+      }
+      if (cornerRadius !== void 0) {
+        if (corners) {
+          if (corners[0])
+            frame.topLeftRadius = cornerRadius;
+          if (corners[1])
+            frame.topRightRadius = cornerRadius;
+          if (corners[2])
+            frame.bottomRightRadius = cornerRadius;
+          if (corners[3])
+            frame.bottomLeftRadius = cornerRadius;
+        } else {
+          frame.cornerRadius = cornerRadius;
+        }
       }
       if (fillColor) {
         frame.fills = [createSolidPaint(fillColor)];
@@ -3012,6 +3028,7 @@
         clipsContent: frame.clipsContent,
         layoutMode: frame.layoutMode,
         layoutWrap: frame.layoutWrap,
+        cornerRadius: frame.cornerRadius,
         parentId: frame.parent ? frame.parent.id : void 0
       };
     });

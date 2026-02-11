@@ -40,6 +40,10 @@ export interface CreateFrameParams extends ParamsBase {
   layoutSizingHorizontal?: "FIXED" | "HUG" | "FILL";
   layoutSizingVertical?: "FIXED" | "HUG" | "FILL";
   itemSpacing?: number;
+  /** Uniform corner radius applied to all corners (or selected corners if `corners` is provided) */
+  cornerRadius?: number;
+  /** Which corners receive the radius: [topLeft, topRight, bottomRight, bottomLeft]. Defaults to all true. */
+  corners?: [boolean, boolean, boolean, boolean];
 }
 
 /**

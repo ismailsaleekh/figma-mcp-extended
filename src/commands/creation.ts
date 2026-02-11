@@ -47,6 +47,7 @@ interface FrameResult {
   clipsContent: boolean;
   layoutMode: "NONE" | "HORIZONTAL" | "VERTICAL";
   layoutWrap: "NO_WRAP" | "WRAP";
+  cornerRadius: number | typeof figma.mixed;
   parentId?: string;
 }
 
@@ -175,6 +176,8 @@ export async function createFrame(
     layoutSizingHorizontal = "FIXED",
     layoutSizingVertical = "FIXED",
     itemSpacing = 0,
+    cornerRadius,
+    corners,
   } = params || {};
 
   const frame = figma.createFrame();
@@ -201,6 +204,18 @@ export async function createFrame(
     frame.layoutSizingHorizontal = layoutSizingHorizontal;
     frame.layoutSizingVertical = layoutSizingVertical;
     frame.itemSpacing = itemSpacing;
+  }
+
+  // Set corner radius if provided
+  if (cornerRadius !== undefined) {
+    if (corners) {
+      if (corners[0]) frame.topLeftRadius = cornerRadius;
+      if (corners[1]) frame.topRightRadius = cornerRadius;
+      if (corners[2]) frame.bottomRightRadius = cornerRadius;
+      if (corners[3]) frame.bottomLeftRadius = cornerRadius;
+    } else {
+      frame.cornerRadius = cornerRadius;
+    }
   }
 
   // Set fill color if provided
@@ -244,6 +259,7 @@ export async function createFrame(
     clipsContent: frame.clipsContent,
     layoutMode: frame.layoutMode as "NONE" | "HORIZONTAL" | "VERTICAL",
     layoutWrap: frame.layoutWrap,
+    cornerRadius: frame.cornerRadius,
     parentId: frame.parent ? frame.parent.id : undefined,
   };
 }
