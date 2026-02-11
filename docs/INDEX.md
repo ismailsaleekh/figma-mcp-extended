@@ -1,6 +1,6 @@
 # Figma MCP Extended API
 
-WebSocket-based API for programmatic access to Figma designs. **77 commands** across 14 categories.
+WebSocket-based API for programmatic access to Figma designs. **78 commands** across 14 categories.
 
 **[Connection Guide](connection.md)** | **[Color Format](reference/color-format.md)** | **[Node ID Format](reference/node-id-format.md)**
 
@@ -81,7 +81,7 @@ WebSocket-based API for programmatic access to Figma designs. **77 commands** ac
 | [`set_constraints`](commands/05-node-operations.md#set_constraints) | Set resize constraints |
 | [`lock_node`](commands/05-node-operations.md#lock_node) | Lock or unlock a node |
 
-### Layout (6)
+### Layout (7)
 
 | Command | Description |
 |---------|-------------|
@@ -91,6 +91,7 @@ WebSocket-based API for programmatic access to Figma designs. **77 commands** ac
 | [`set_layout_sizing`](commands/06-layout.md#set_layout_sizing) | Set sizing behavior (hug, fill, fixed) |
 | [`set_item_spacing`](commands/06-layout.md#set_item_spacing) | Set spacing between children |
 | [`set_min_max_size`](commands/06-layout.md#set_min_max_size) | Set min/max size constraints |
+| [`set_layout_positioning`](commands/06-layout.md#set_layout_positioning) | Set absolute positioning within auto-layout |
 
 ### Components (5)
 
@@ -168,7 +169,7 @@ WebSocket-based API for programmatic access to Figma designs. **77 commands** ac
 | Styling | 8 |
 | Text | 10 |
 | Node Operations | 10 |
-| Layout | 6 |
+| Layout | 7 |
 | Components | 5 |
 | Images & Export | 2 |
 | Annotations | 3 |
@@ -177,4 +178,4 @@ WebSocket-based API for programmatic access to Figma designs. **77 commands** ac
 | Extraction & Analysis | 6 |
 | Scanning | 1 |
 | Utility | 1 |
-| **Total** | **77** |
+| **Total** | **78** |

@@ -118,3 +118,45 @@ Set min/max size constraints on an auto-layout frame.
 ```
 
 **Returns**: `{ id, name, minWidth, maxWidth, minHeight, maxHeight, layoutMode }`
+
+---
+
+## `set_layout_positioning`
+
+Set a node to absolute positioning within its auto-layout parent, removing it from the layout flow. Used for FABs, badges, overlays, pagination dots, and other floating elements.
+
+**Parameters**:
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `nodeId` | string | Yes | Target node ID (must be a child of an auto-layout frame) |
+| `positioning` | string | Yes | "ABSOLUTE" or "AUTO" |
+| `x` | number | No | Horizontal position within parent (only applied when ABSOLUTE) |
+| `y` | number | No | Vertical position within parent (only applied when ABSOLUTE) |
+
+**Note**: The target node must be a direct child of a frame with auto-layout enabled (layoutMode !== "NONE"). Setting to "AUTO" returns the node to normal layout flow.
+
+**Example — FAB positioned bottom-right**:
+```json
+{
+  "command": "set_layout_positioning",
+  "params": {
+    "nodeId": "4371:60001",
+    "positioning": "ABSOLUTE",
+    "x": 313,
+    "y": 720
+  }
+}
+```
+
+**Example — Return to auto-layout flow**:
+```json
+{
+  "command": "set_layout_positioning",
+  "params": {
+    "nodeId": "4371:60001",
+    "positioning": "AUTO"
+  }
+}
+```
+
+**Returns**: `{ id, name, layoutPositioning, x, y, parentId, parentName, parentLayoutMode }`
