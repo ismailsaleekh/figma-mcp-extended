@@ -54,10 +54,12 @@ Create a frame with optional auto-layout settings.
 | `counterAxisSpacing` | number | No | - | Gap between wrapped rows/columns (only applies when `layoutWrap` is `"WRAP"`) |
 | `cornerRadius` | number | No | - | Uniform corner radius (or per-corner if `corners` is provided) |
 | `corners` | boolean[4] | No | all true | Which corners receive the radius: `[topLeft, topRight, bottomRight, bottomLeft]` |
+| `opacity` | number | No | 1 | Node opacity (0–1) |
+| `effects` | array | No | - | Array of effect objects (same format as `set_effects`) |
 
 **Note**: When `layoutMode` is `"HORIZONTAL"` or `"VERTICAL"`, padding defaults to **10px** on all sides if not explicitly specified. Pass `paddingTop: 0, paddingRight: 0, paddingBottom: 0, paddingLeft: 0` when zero padding is needed.
 
-**Returns**: `{ id, name, x, y, width, height, fills, strokes, strokeWeight, clipsContent, layoutMode, layoutWrap, cornerRadius, parentId }`
+**Returns**: `{ id, name, x, y, width, height, fills, strokes, strokeWeight, clipsContent, layoutMode, layoutWrap, cornerRadius, opacity, effects, parentId }`
 
 ---
 
