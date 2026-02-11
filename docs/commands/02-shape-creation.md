@@ -51,6 +51,7 @@ Create a frame with optional auto-layout settings.
 | `layoutSizingHorizontal` | string | No | "FIXED" | "FIXED", "HUG", "FILL" |
 | `layoutSizingVertical` | string | No | "FIXED" | "FIXED", "HUG", "FILL" |
 | `itemSpacing` | number | No | 0 | Gap between children |
+| `counterAxisSpacing` | number | No | - | Gap between wrapped rows/columns (only applies when `layoutWrap` is `"WRAP"`) |
 | `cornerRadius` | number | No | - | Uniform corner radius (or per-corner if `corners` is provided) |
 | `corners` | boolean[4] | No | all true | Which corners receive the radius: `[topLeft, topRight, bottomRight, bottomLeft]` |
 
