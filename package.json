@@ -5,6 +5,7 @@
     "build": "esbuild src/index.ts --bundle --outfile=code.js --format=iife --target=es6",
     "watch": "esbuild src/index.ts --bundle --outfile=code.js --format=iife --target=es6 --watch",
     "dev": "npm run watch",
+    "start": "sh start.sh",
     "typecheck": "tsc --noEmit",
     "typecheck:watch": "tsc --noEmit --watch"
   },
