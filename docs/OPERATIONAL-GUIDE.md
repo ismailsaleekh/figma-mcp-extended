@@ -160,6 +160,7 @@ analyzeNext();
 | `scan_text_nodes` | Extract text content |
 | `scan_nodes_by_types` | Find nodes by type |
 | `get_complete_file_data` | Full file export |
+| `get_validation_tree` | Complete property tree for validation |
 | `export_node_as_image` | Export as PNG |
 
 ### Workflow Checklist

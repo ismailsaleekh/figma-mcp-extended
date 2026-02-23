@@ -1,6 +1,6 @@
 # Figma MCP Extended API
 
-WebSocket-based API for programmatic access to Figma designs. **78 commands** across 14 categories.
+WebSocket-based API for programmatic access to Figma designs. **79 commands** across 14 categories.
 
 **[Connection Guide](connection.md)** | **[Color Format](reference/color-format.md)** | **[Node ID Format](reference/node-id-format.md)**
 
@@ -135,7 +135,7 @@ WebSocket-based API for programmatic access to Figma designs. **78 commands** ac
 | [`set_default_connector`](commands/11-connections.md#set_default_connector) | Set default connector |
 | [`create_connections`](commands/11-connections.md#create_connections) | Create connector lines |
 
-### Extraction & Analysis (6)
+### Extraction & Analysis (7)
 
 | Command | Description |
 |---------|-------------|
@@ -145,6 +145,7 @@ WebSocket-based API for programmatic access to Figma designs. **78 commands** ac
 | [`get_component_hierarchy`](commands/12-extraction.md#get_component_hierarchy) | Analyze component relationships |
 | [`get_responsive_layouts`](commands/12-extraction.md#get_responsive_layouts) | Analyze responsive patterns |
 | [`get_style_inheritance`](commands/12-extraction.md#get_style_inheritance) | Analyze style inheritance |
+| [`get_validation_tree`](commands/12-extraction.md#get_validation_tree) | Get complete property tree for validation |
 
 ### Scanning (1)
 
@@ -175,7 +176,7 @@ WebSocket-based API for programmatic access to Figma designs. **78 commands** ac
 | Annotations | 3 |
 | Instances & Overrides | 2 |
 | Connections | 3 |
-| Extraction & Analysis | 6 |
+| Extraction & Analysis | 7 |
 | Scanning | 1 |
 | Utility | 1 |
-| **Total** | **78** |
+| **Total** | **79** |

@@ -12,7 +12,7 @@
    - Error handling
 
 2. **[API Reference](docs/INDEX.md)** - Command documentation
-   - 74 commands across 14 categories
+   - 79 commands across 14 categories
    - Parameters and response formats
 
 ---
