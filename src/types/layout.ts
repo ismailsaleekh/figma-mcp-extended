@@ -65,10 +65,19 @@ export interface SetMinMaxSizeParams extends ParamsBase {
  * Sets a node to absolute positioning within its auto-layout parent,
  * removing it from the layout flow. Used for FABs, badges, overlays,
  * pagination dots, and other floating elements.
+ *
+ * Supports two positioning modes:
+ * - Legacy: pass x/y directly
+ * - Offset-based: pass top/left/right/bottom offsets; the plugin computes
+ *   x/y using the actual parent dimensions (fixes parentWidth propagation bug)
  */
 export interface SetLayoutPositioningParams extends ParamsBase {
   nodeId: string;
   positioning: "ABSOLUTE" | "AUTO";
   x?: number;
   y?: number;
+  top?: number;
+  left?: number;
+  right?: number;
+  bottom?: number;
 }

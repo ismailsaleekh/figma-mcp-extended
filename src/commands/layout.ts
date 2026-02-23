@@ -128,34 +128,49 @@ export async function setLayoutSizing(params: SetLayoutSizingParams) {
     throw new Error(`Node with ID ${nodeId} not found`);
   }
 
-  if (!isAutoLayoutFrame(node)) {
+  // Accept both auto-layout frames AND text/other nodes that are children
+  // of auto-layout frames (they support layoutSizingHorizontal/Vertical too)
+  const isLayout = isAutoLayoutFrame(node);
+  const isChildOfAutoLayout =
+    !isLayout &&
+    "layoutSizingHorizontal" in node &&
+    node.parent !== null &&
+    isAutoLayoutFrame(node.parent) &&
+    (node.parent as AutoLayoutFrame).layoutMode !== "NONE";
+
+  if (!isLayout && !isChildOfAutoLayout) {
     throw new Error(`Node type ${node.type} does not support layout sizing`);
   }
 
-  if (node.layoutMode === "NONE") {
+  if (isLayout && node.layoutMode === "NONE") {
     throw new Error("Layout sizing can only be set on auto-layout frames");
   }
+
+  const sizable = node as SceneNode & {
+    layoutSizingHorizontal: "FIXED" | "HUG" | "FILL";
+    layoutSizingVertical: "FIXED" | "HUG" | "FILL";
+  };
 
   if (layoutSizingHorizontal !== undefined) {
     if (!["FIXED", "HUG", "FILL"].includes(layoutSizingHorizontal)) {
       throw new Error("Invalid layoutSizingHorizontal value");
     }
-    node.layoutSizingHorizontal = layoutSizingHorizontal;
+    sizable.layoutSizingHorizontal = layoutSizingHorizontal;
   }
 
   if (layoutSizingVertical !== undefined) {
     if (!["FIXED", "HUG", "FILL"].includes(layoutSizingVertical)) {
       throw new Error("Invalid layoutSizingVertical value");
     }
-    node.layoutSizingVertical = layoutSizingVertical;
+    sizable.layoutSizingVertical = layoutSizingVertical;
   }
 
   return {
     id: node.id,
     name: node.name,
-    layoutSizingHorizontal: node.layoutSizingHorizontal,
-    layoutSizingVertical: node.layoutSizingVertical,
-    layoutMode: node.layoutMode,
+    layoutSizingHorizontal: sizable.layoutSizingHorizontal,
+    layoutSizingVertical: sizable.layoutSizingVertical,
+    layoutMode: isLayout ? node.layoutMode : "CHILD",
   };
 }
 
@@ -237,7 +252,7 @@ export async function setMinMaxSize(params: SetMinMaxSizeParams) {
 }
 
 export async function setLayoutPositioning(params: SetLayoutPositioningParams) {
-  const { nodeId, positioning, x, y } = params;
+  const { nodeId, positioning, x, y, top, left, right, bottom } = params;
 
   const node = await figma.getNodeByIdAsync(nodeId);
   if (!node) {
@@ -248,7 +263,10 @@ export async function setLayoutPositioning(params: SetLayoutPositioningParams) {
     throw new Error(`Node type ${node.type} does not support layoutPositioning`);
   }
 
-  const sceneNode = node as SceneNode & { layoutPositioning: "AUTO" | "ABSOLUTE" };
+  const sceneNode = node as SceneNode & {
+    layoutPositioning: "AUTO" | "ABSOLUTE";
+    constraints: Constraints;
+  };
 
   // Validate parent is an auto-layout frame
   const parent = node.parent;
@@ -262,10 +280,38 @@ export async function setLayoutPositioning(params: SetLayoutPositioningParams) {
 
   sceneNode.layoutPositioning = positioning;
 
-  // Optionally set x/y position within the parent
-  if (positioning === "ABSOLUTE" && (x !== undefined || y !== undefined)) {
-    if (x !== undefined) sceneNode.x = x;
-    if (y !== undefined) sceneNode.y = y;
+  if (positioning === "ABSOLUTE") {
+    // Offset-based positioning — compute x/y from actual parent dimensions
+    const hasOffsets = top !== undefined || left !== undefined || right !== undefined || bottom !== undefined;
+
+    if (hasOffsets) {
+      const parentWidth = parent.width;
+      const parentHeight = parent.height;
+      const nodeWidth = sceneNode.width;
+      const nodeHeight = sceneNode.height;
+
+      if (typeof left === "number") {
+        sceneNode.x = left;
+      } else if (typeof right === "number") {
+        sceneNode.x = parentWidth - nodeWidth - right;
+      }
+
+      if (typeof top === "number") {
+        sceneNode.y = top;
+      } else if (typeof bottom === "number") {
+        sceneNode.y = parentHeight - nodeHeight - bottom;
+      }
+
+      // Set constraints to match the positioning edge
+      sceneNode.constraints = {
+        horizontal: typeof right === "number" ? "MAX" : "MIN",
+        vertical: typeof bottom === "number" ? "MAX" : "MIN",
+      };
+    } else if (x !== undefined || y !== undefined) {
+      // Legacy x/y positioning
+      if (x !== undefined) sceneNode.x = x;
+      if (y !== undefined) sceneNode.y = y;
+    }
   }
 
   return {

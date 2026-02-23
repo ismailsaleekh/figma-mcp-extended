@@ -3955,10 +3955,12 @@
       if (!node) {
         throw new Error(`Node with ID ${nodeId} not found`);
       }
-      if (!isAutoLayoutFrame(node)) {
+      var isLayout = isAutoLayoutFrame(node);
+      var isChildOfAutoLayout = !isLayout && "layoutSizingHorizontal" in node && node.parent !== null && isAutoLayoutFrame(node.parent) && node.parent.layoutMode !== "NONE";
+      if (!isLayout && !isChildOfAutoLayout) {
         throw new Error(`Node type ${node.type} does not support layout sizing`);
       }
-      if (node.layoutMode === "NONE") {
+      if (isLayout && node.layoutMode === "NONE") {
         throw new Error("Layout sizing can only be set on auto-layout frames");
       }
       if (layoutSizingHorizontal !== void 0) {
@@ -3978,7 +3980,7 @@
         name: node.name,
         layoutSizingHorizontal: node.layoutSizingHorizontal,
         layoutSizingVertical: node.layoutSizingVertical,
-        layoutMode: node.layoutMode
+        layoutMode: isLayout ? node.layoutMode : "CHILD"
       };
     });
   }
@@ -4054,7 +4056,7 @@
   }
   function setLayoutPositioning(params) {
     return __async(this, null, function* () {
-      const { nodeId, positioning, x, y } = params;
+      const { nodeId, positioning, x, y, top, left, right, bottom } = params;
       const node = yield figma.getNodeByIdAsync(nodeId);
       if (!node) {
         throw new Error(`Node with ID ${nodeId} not found`);
@@ -4071,11 +4073,33 @@
         throw new Error("Invalid positioning value. Must be 'ABSOLUTE' or 'AUTO'.");
       }
       sceneNode.layoutPositioning = positioning;
-      if (positioning === "ABSOLUTE" && (x !== void 0 || y !== void 0)) {
-        if (x !== void 0)
-          sceneNode.x = x;
-        if (y !== void 0)
-          sceneNode.y = y;
+      if (positioning === "ABSOLUTE") {
+        var hasOffsets = top !== void 0 || left !== void 0 || right !== void 0 || bottom !== void 0;
+        if (hasOffsets) {
+          var parentWidth = parent.width;
+          var parentHeight = parent.height;
+          var nodeWidth = sceneNode.width;
+          var nodeHeight = sceneNode.height;
+          if (typeof left === "number") {
+            sceneNode.x = left;
+          } else if (typeof right === "number") {
+            sceneNode.x = parentWidth - nodeWidth - right;
+          }
+          if (typeof top === "number") {
+            sceneNode.y = top;
+          } else if (typeof bottom === "number") {
+            sceneNode.y = parentHeight - nodeHeight - bottom;
+          }
+          sceneNode.constraints = {
+            horizontal: typeof right === "number" ? "MAX" : "MIN",
+            vertical: typeof bottom === "number" ? "MAX" : "MIN"
+          };
+        } else if (x !== void 0 || y !== void 0) {
+          if (x !== void 0)
+            sceneNode.x = x;
+          if (y !== void 0)
+            sceneNode.y = y;
+        }
       }
       return {
         id: node.id,
