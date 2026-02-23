@@ -3955,31 +3955,32 @@
       if (!node) {
         throw new Error(`Node with ID ${nodeId} not found`);
       }
-      var isLayout = isAutoLayoutFrame(node);
-      var isChildOfAutoLayout = !isLayout && "layoutSizingHorizontal" in node && node.parent !== null && isAutoLayoutFrame(node.parent) && node.parent.layoutMode !== "NONE";
+      const isLayout = isAutoLayoutFrame(node);
+      const isChildOfAutoLayout = !isLayout && "layoutSizingHorizontal" in node && node.parent !== null && isAutoLayoutFrame(node.parent) && node.parent.layoutMode !== "NONE";
       if (!isLayout && !isChildOfAutoLayout) {
         throw new Error(`Node type ${node.type} does not support layout sizing`);
       }
       if (isLayout && node.layoutMode === "NONE") {
         throw new Error("Layout sizing can only be set on auto-layout frames");
       }
+      const sizable = node;
       if (layoutSizingHorizontal !== void 0) {
         if (!["FIXED", "HUG", "FILL"].includes(layoutSizingHorizontal)) {
           throw new Error("Invalid layoutSizingHorizontal value");
         }
-        node.layoutSizingHorizontal = layoutSizingHorizontal;
+        sizable.layoutSizingHorizontal = layoutSizingHorizontal;
       }
       if (layoutSizingVertical !== void 0) {
         if (!["FIXED", "HUG", "FILL"].includes(layoutSizingVertical)) {
           throw new Error("Invalid layoutSizingVertical value");
         }
-        node.layoutSizingVertical = layoutSizingVertical;
+        sizable.layoutSizingVertical = layoutSizingVertical;
       }
       return {
         id: node.id,
         name: node.name,
-        layoutSizingHorizontal: node.layoutSizingHorizontal,
-        layoutSizingVertical: node.layoutSizingVertical,
+        layoutSizingHorizontal: sizable.layoutSizingHorizontal,
+        layoutSizingVertical: sizable.layoutSizingVertical,
         layoutMode: isLayout ? node.layoutMode : "CHILD"
       };
     });
@@ -4074,12 +4075,12 @@
       }
       sceneNode.layoutPositioning = positioning;
       if (positioning === "ABSOLUTE") {
-        var hasOffsets = top !== void 0 || left !== void 0 || right !== void 0 || bottom !== void 0;
+        const hasOffsets = top !== void 0 || left !== void 0 || right !== void 0 || bottom !== void 0;
         if (hasOffsets) {
-          var parentWidth = parent.width;
-          var parentHeight = parent.height;
-          var nodeWidth = sceneNode.width;
-          var nodeHeight = sceneNode.height;
+          const parentWidth = parent.width;
+          const parentHeight = parent.height;
+          const nodeWidth = sceneNode.width;
+          const nodeHeight = sceneNode.height;
           if (typeof left === "number") {
             sceneNode.x = left;
           } else if (typeof right === "number") {
@@ -6080,6 +6081,171 @@
       }
     });
   }
+  function getValidationTree(params) {
+    return __async(this, null, function* () {
+      const node = yield figma.getNodeByIdAsync(params.nodeId);
+      if (!node)
+        throw new Error(`Node not found: ${params.nodeId}`);
+      return serializeForValidation(node, null);
+    });
+  }
+  function serializeForValidation(node, parentId) {
+    const bbox = node.absoluteBoundingBox || { x: 0, y: 0, width: 0, height: 0 };
+    const relX = node.x;
+    const relY = node.y;
+    const result = {
+      // Identity
+      id: node.id,
+      name: node.name,
+      type: node.type,
+      // Structure
+      visible: node.visible,
+      parentId,
+      // Geometry
+      x: relX,
+      y: relY,
+      width: bbox.width,
+      height: bbox.height,
+      absoluteX: bbox.x,
+      absoluteY: bbox.y,
+      // Layout — safe access with "in" checks
+      layoutMode: "layoutMode" in node ? node.layoutMode : null,
+      layoutSizingHorizontal: "layoutSizingHorizontal" in node ? node.layoutSizingHorizontal : "FIXED",
+      layoutSizingVertical: "layoutSizingVertical" in node ? node.layoutSizingVertical : "FIXED",
+      primaryAxisAlignItems: "primaryAxisAlignItems" in node ? node.primaryAxisAlignItems : "MIN",
+      counterAxisAlignItems: "counterAxisAlignItems" in node ? node.counterAxisAlignItems : "MIN",
+      paddingTop: "paddingTop" in node ? node.paddingTop : 0,
+      paddingRight: "paddingRight" in node ? node.paddingRight : 0,
+      paddingBottom: "paddingBottom" in node ? node.paddingBottom : 0,
+      paddingLeft: "paddingLeft" in node ? node.paddingLeft : 0,
+      itemSpacing: "itemSpacing" in node ? node.itemSpacing : 0,
+      layoutPositioning: "layoutPositioning" in node ? node.layoutPositioning : "AUTO",
+      clipsContent: "clipsContent" in node ? node.clipsContent : false,
+      // Styling
+      opacity: "opacity" in node ? node.opacity : 1,
+      cornerRadius: "cornerRadius" in node ? node.cornerRadius : 0,
+      fills: validationSerializeFills(node),
+      strokes: validationSerializeStrokes(node),
+      effects: validationSerializeEffects(node),
+      // Text
+      characters: node.type === "TEXT" ? node.characters : null,
+      fontSize: node.type === "TEXT" ? validationExtractFontSize(node) : null,
+      fontWeight: node.type === "TEXT" ? validationExtractFontWeight(node) : null,
+      fontFamily: node.type === "TEXT" ? validationExtractFontFamily(node) : null,
+      textAlignHorizontal: node.type === "TEXT" ? node.textAlignHorizontal : null,
+      lineHeightPx: node.type === "TEXT" ? validationExtractLineHeight(node) : null,
+      letterSpacing: node.type === "TEXT" ? validationExtractLetterSpacing(node) : null,
+      textTruncation: node.type === "TEXT" ? node.textTruncation || "DISABLED" : null,
+      maxLines: node.type === "TEXT" ? node.maxLines || null : null,
+      // Children
+      children: []
+    };
+    if ("children" in node) {
+      const children = [];
+      for (const child of node.children) {
+        children.push(serializeForValidation(child, node.id));
+      }
+      result.children = children;
+    }
+    return result;
+  }
+  function validationSerializeFills(node) {
+    if (!("fills" in node))
+      return [];
+    const fills = node.fills;
+    if (!Array.isArray(fills))
+      return [];
+    return fills.map((fill) => {
+      var _a;
+      return {
+        type: fill.type || "SOLID",
+        visible: fill.visible !== false,
+        color: fill.color ? { r: fill.color.r, g: fill.color.g, b: fill.color.b, a: (_a = fill.opacity) != null ? _a : 1 } : null
+      };
+    });
+  }
+  function validationSerializeStrokes(node) {
+    if (!("strokes" in node))
+      return [];
+    const strokes = node.strokes;
+    if (!Array.isArray(strokes))
+      return [];
+    return strokes.map((stroke) => {
+      var _a;
+      return {
+        type: stroke.type || "SOLID",
+        visible: stroke.visible !== false,
+        color: stroke.color ? { r: stroke.color.r, g: stroke.color.g, b: stroke.color.b, a: (_a = stroke.opacity) != null ? _a : 1 } : null,
+        weight: "strokeWeight" in node ? node.strokeWeight : 1
+      };
+    });
+  }
+  function validationSerializeEffects(node) {
+    if (!("effects" in node))
+      return [];
+    const effects = node.effects;
+    if (!Array.isArray(effects))
+      return [];
+    return effects.map((effect) => {
+      var _a;
+      return {
+        type: effect.type,
+        visible: effect.visible !== false,
+        color: effect.color ? { r: effect.color.r, g: effect.color.g, b: effect.color.b, a: (_a = effect.color.a) != null ? _a : 1 } : null,
+        offset: effect.offset ? { x: effect.offset.x, y: effect.offset.y } : null,
+        radius: effect.radius || 0
+      };
+    });
+  }
+  function validationExtractFontSize(node) {
+    const size = node.fontSize;
+    return typeof size === "number" ? size : 14;
+  }
+  function validationExtractFontWeight(node) {
+    const fontName = node.fontName;
+    if (fontName && typeof fontName === "object" && "style" in fontName) {
+      const style = fontName.style.toLowerCase();
+      if (style.includes("thin"))
+        return 100;
+      if (style.includes("extralight") || style.includes("extra light"))
+        return 200;
+      if (style.includes("light"))
+        return 300;
+      if (style.includes("medium"))
+        return 500;
+      if (style.includes("semibold") || style.includes("semi bold"))
+        return 600;
+      if (style.includes("extrabold") || style.includes("extra bold"))
+        return 800;
+      if (style.includes("black"))
+        return 900;
+      if (style.includes("bold"))
+        return 700;
+      return 400;
+    }
+    return 400;
+  }
+  function validationExtractFontFamily(node) {
+    const fontName = node.fontName;
+    if (fontName && typeof fontName === "object" && "family" in fontName) {
+      return fontName.family;
+    }
+    return "Inter";
+  }
+  function validationExtractLineHeight(node) {
+    const lh = node.lineHeight;
+    if (lh && typeof lh === "object" && "value" in lh) {
+      return lh.value;
+    }
+    return null;
+  }
+  function validationExtractLetterSpacing(node) {
+    const ls = node.letterSpacing;
+    if (ls && typeof ls === "object" && "value" in ls) {
+      return ls.value;
+    }
+    return null;
+  }
   var init_extraction = __esm({
     "src/commands/extraction.ts"() {
       "use strict";
@@ -6608,6 +6774,9 @@
       function isLockNodeParams(params) {
         return hasString(params, "nodeId") && typeof params.locked === "boolean";
       }
+      function isGetValidationTreeParams(params) {
+        return hasString(params, "nodeId");
+      }
       function isCreateComponentFromNodeParams(params) {
         return hasString(params, "nodeId");
       }
@@ -6937,6 +7106,11 @@
               return yield getResponsiveLayouts(params || {});
             case "get_style_inheritance":
               return yield getStyleInheritance(params || {});
+            case "get_validation_tree":
+              if (!params || !isGetValidationTreeParams(params)) {
+                throw new Error("Missing required parameter: nodeId");
+              }
+              return yield getValidationTree(params);
             case "scan_nodes_by_types":
               if (!params || !isScanNodesByTypesParams(params)) {
                 throw new Error("Missing required parameter: types");

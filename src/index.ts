@@ -54,6 +54,7 @@ import type {
   GetLayoutConstraintsParams,
   GetResponsiveLayoutsParams,
   GetStyleInheritanceParams,
+  GetValidationTreeParams,
   ScanNodesByTypesParams,
   DeleteMultipleNodesParams,
   CreatePageParams,
@@ -321,6 +322,13 @@ function isSetConstraintsParams(params: Record<string, unknown>): params is SetC
 
 function isLockNodeParams(params: Record<string, unknown>): params is LockNodeParams {
   return hasString(params, "nodeId") && typeof params.locked === "boolean";
+}
+
+// Extraction params
+function isGetValidationTreeParams(
+  params: Record<string, unknown>
+): params is GetValidationTreeParams {
+  return hasString(params, "nodeId");
 }
 
 // Component params
@@ -692,6 +700,11 @@ async function handleCommand(
       return await extractionCommands.getResponsiveLayouts((params as GetResponsiveLayoutsParams) || {});
     case "get_style_inheritance":
       return await extractionCommands.getStyleInheritance((params as GetStyleInheritanceParams) || {});
+    case "get_validation_tree":
+      if (!params || !isGetValidationTreeParams(params)) {
+        throw new Error("Missing required parameter: nodeId");
+      }
+      return await extractionCommands.getValidationTree(params);
 
     // Scanning commands
     case "scan_nodes_by_types":

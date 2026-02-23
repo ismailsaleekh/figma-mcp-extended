@@ -1,6 +1,6 @@
 // src/commands/extraction.ts
 
-import type { GetLayoutConstraintsParams, GetStyleInheritanceParams } from "../types";
+import type { GetLayoutConstraintsParams, GetStyleInheritanceParams, GetValidationTreeParams } from "../types";
 import { generateCommandId, sendProgressUpdate } from "../helpers/progress";
 import { rgbaToHex } from "../helpers/colors";
 
@@ -807,4 +807,196 @@ export async function getStyleInheritance(params: GetStyleInheritanceParams) {
   } catch (error) {
     throw new Error(`Error analyzing style inheritance: ${(error as Error).message}`);
   }
+}
+
+// ============================================================================
+// Validation Tree — direct Plugin API access (no exportAsync)
+// ============================================================================
+
+export async function getValidationTree(params: GetValidationTreeParams) {
+  const node = await figma.getNodeByIdAsync(params.nodeId);
+  if (!node) throw new Error(`Node not found: ${params.nodeId}`);
+
+  return serializeForValidation(node as SceneNode, null);
+}
+
+function serializeForValidation(
+  node: SceneNode,
+  parentId: string | null
+): Record<string, unknown> {
+  const bbox = node.absoluteBoundingBox || { x: 0, y: 0, width: 0, height: 0 };
+
+  const relX = node.x;
+  const relY = node.y;
+
+  const result: Record<string, unknown> = {
+    // Identity
+    id: node.id,
+    name: node.name,
+    type: node.type,
+
+    // Structure
+    visible: node.visible,
+    parentId: parentId,
+
+    // Geometry
+    x: relX,
+    y: relY,
+    width: bbox.width,
+    height: bbox.height,
+    absoluteX: bbox.x,
+    absoluteY: bbox.y,
+
+    // Layout — safe access with "in" checks
+    layoutMode: "layoutMode" in node ? (node as any).layoutMode : null,
+    layoutSizingHorizontal: "layoutSizingHorizontal" in node
+      ? (node as any).layoutSizingHorizontal : "FIXED",
+    layoutSizingVertical: "layoutSizingVertical" in node
+      ? (node as any).layoutSizingVertical : "FIXED",
+    primaryAxisAlignItems: "primaryAxisAlignItems" in node
+      ? (node as any).primaryAxisAlignItems : "MIN",
+    counterAxisAlignItems: "counterAxisAlignItems" in node
+      ? (node as any).counterAxisAlignItems : "MIN",
+    paddingTop: "paddingTop" in node ? (node as any).paddingTop : 0,
+    paddingRight: "paddingRight" in node ? (node as any).paddingRight : 0,
+    paddingBottom: "paddingBottom" in node ? (node as any).paddingBottom : 0,
+    paddingLeft: "paddingLeft" in node ? (node as any).paddingLeft : 0,
+    itemSpacing: "itemSpacing" in node ? (node as any).itemSpacing : 0,
+    layoutPositioning: "layoutPositioning" in node
+      ? (node as any).layoutPositioning : "AUTO",
+    clipsContent: "clipsContent" in node ? (node as any).clipsContent : false,
+
+    // Styling
+    opacity: "opacity" in node ? (node as any).opacity : 1,
+    cornerRadius: "cornerRadius" in node ? (node as any).cornerRadius : 0,
+    fills: validationSerializeFills(node),
+    strokes: validationSerializeStrokes(node),
+    effects: validationSerializeEffects(node),
+
+    // Text
+    characters: node.type === "TEXT" ? (node as TextNode).characters : null,
+    fontSize: node.type === "TEXT" ? validationExtractFontSize(node as TextNode) : null,
+    fontWeight: node.type === "TEXT" ? validationExtractFontWeight(node as TextNode) : null,
+    fontFamily: node.type === "TEXT" ? validationExtractFontFamily(node as TextNode) : null,
+    textAlignHorizontal: node.type === "TEXT"
+      ? (node as TextNode).textAlignHorizontal : null,
+    lineHeightPx: node.type === "TEXT" ? validationExtractLineHeight(node as TextNode) : null,
+    letterSpacing: node.type === "TEXT" ? validationExtractLetterSpacing(node as TextNode) : null,
+    textTruncation: node.type === "TEXT"
+      ? (node as TextNode).textTruncation || "DISABLED" : null,
+    maxLines: node.type === "TEXT" ? (node as TextNode).maxLines || null : null,
+
+    // Children
+    children: [],
+  };
+
+  // Recurse into children (includes VECTOR, GROUP, etc. — no filtering)
+  if ("children" in node) {
+    const children: Record<string, unknown>[] = [];
+    for (const child of (node as any).children) {
+      children.push(serializeForValidation(child as SceneNode, node.id));
+    }
+    result.children = children;
+  }
+
+  return result;
+}
+
+// ── Validation helpers: Serialize fills to RGBA ──
+
+function validationSerializeFills(node: SceneNode): unknown[] {
+  if (!("fills" in node)) return [];
+  const fills = (node as any).fills;
+  if (!Array.isArray(fills)) return [];
+
+  return fills.map((fill: any) => ({
+    type: fill.type || "SOLID",
+    visible: fill.visible !== false,
+    color: fill.color
+      ? { r: fill.color.r, g: fill.color.g, b: fill.color.b, a: fill.opacity ?? 1 }
+      : null,
+  }));
+}
+
+// ── Validation helpers: Serialize strokes to RGBA ──
+
+function validationSerializeStrokes(node: SceneNode): unknown[] {
+  if (!("strokes" in node)) return [];
+  const strokes = (node as any).strokes;
+  if (!Array.isArray(strokes)) return [];
+
+  return strokes.map((stroke: any) => ({
+    type: stroke.type || "SOLID",
+    visible: stroke.visible !== false,
+    color: stroke.color
+      ? { r: stroke.color.r, g: stroke.color.g, b: stroke.color.b, a: stroke.opacity ?? 1 }
+      : null,
+    weight: "strokeWeight" in node ? (node as any).strokeWeight : 1,
+  }));
+}
+
+// ── Validation helpers: Serialize effects ──
+
+function validationSerializeEffects(node: SceneNode): unknown[] {
+  if (!("effects" in node)) return [];
+  const effects = (node as any).effects;
+  if (!Array.isArray(effects)) return [];
+
+  return effects.map((effect: any) => ({
+    type: effect.type,
+    visible: effect.visible !== false,
+    color: effect.color
+      ? { r: effect.color.r, g: effect.color.g, b: effect.color.b, a: effect.color.a ?? 1 }
+      : null,
+    offset: effect.offset ? { x: effect.offset.x, y: effect.offset.y } : null,
+    radius: effect.radius || 0,
+  }));
+}
+
+// ── Validation helpers: Extract text properties (handle mixed styles) ──
+
+function validationExtractFontSize(node: TextNode): number {
+  const size = node.fontSize;
+  return typeof size === "number" ? size : 14;
+}
+
+function validationExtractFontWeight(node: TextNode): number {
+  const fontName = node.fontName;
+  if (fontName && typeof fontName === "object" && "style" in fontName) {
+    const style = (fontName as FontName).style.toLowerCase();
+    if (style.includes("thin")) return 100;
+    if (style.includes("extralight") || style.includes("extra light")) return 200;
+    if (style.includes("light")) return 300;
+    if (style.includes("medium")) return 500;
+    if (style.includes("semibold") || style.includes("semi bold")) return 600;
+    if (style.includes("extrabold") || style.includes("extra bold")) return 800;
+    if (style.includes("black")) return 900;
+    if (style.includes("bold")) return 700;
+    return 400;
+  }
+  return 400;
+}
+
+function validationExtractFontFamily(node: TextNode): string {
+  const fontName = node.fontName;
+  if (fontName && typeof fontName === "object" && "family" in fontName) {
+    return (fontName as FontName).family;
+  }
+  return "Inter";
+}
+
+function validationExtractLineHeight(node: TextNode): number | null {
+  const lh = node.lineHeight;
+  if (lh && typeof lh === "object" && "value" in lh) {
+    return (lh as any).value;
+  }
+  return null;
+}
+
+function validationExtractLetterSpacing(node: TextNode): number | null {
+  const ls = node.letterSpacing;
+  if (ls && typeof ls === "object" && "value" in ls) {
+    return (ls as any).value;
+  }
+  return null;
 }

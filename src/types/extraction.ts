@@ -30,3 +30,10 @@ export interface GetResponsiveLayoutsParams extends ParamsBase {
 export interface GetStyleInheritanceParams extends ParamsBase {
   nodeId?: string;
 }
+
+/**
+ * Get validation tree parameters
+ */
+export interface GetValidationTreeParams extends ParamsBase {
+  nodeId: string;
+}
