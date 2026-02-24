@@ -6163,12 +6163,19 @@
     if (!Array.isArray(fills))
       return [];
     return fills.map((fill) => {
-      var _a;
-      return {
+      var _a, _b;
+      const result = {
         type: fill.type || "SOLID",
         visible: fill.visible !== false,
         color: fill.color ? { r: fill.color.r, g: fill.color.g, b: fill.color.b, a: (_a = fill.opacity) != null ? _a : 1 } : null
       };
+      if (fill.gradientStops && Array.isArray(fill.gradientStops)) {
+        result.gradientStops = fill.gradientStops.map((stop) => ({
+          position: stop.position,
+          color: stop.color ? { r: stop.color.r, g: stop.color.g, b: stop.color.b, a: (_b = stop.color.a) != null ? _b : 1 } : null
+        }));
+      }
+      return result;
     });
   }
   function validationSerializeStrokes(node) {

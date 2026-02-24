@@ -920,13 +920,27 @@ function validationSerializeFills(node: SceneNode): unknown[] {
   const fills = (node as any).fills;
   if (!Array.isArray(fills)) return [];
 
-  return fills.map((fill: any) => ({
-    type: fill.type || "SOLID",
-    visible: fill.visible !== false,
-    color: fill.color
-      ? { r: fill.color.r, g: fill.color.g, b: fill.color.b, a: fill.opacity ?? 1 }
-      : null,
-  }));
+  return fills.map((fill: any) => {
+    const result: Record<string, unknown> = {
+      type: fill.type || "SOLID",
+      visible: fill.visible !== false,
+      color: fill.color
+        ? { r: fill.color.r, g: fill.color.g, b: fill.color.b, a: fill.opacity ?? 1 }
+        : null,
+    };
+
+    // Gradient fills — include stops for validation comparison
+    if (fill.gradientStops && Array.isArray(fill.gradientStops)) {
+      result.gradientStops = fill.gradientStops.map((stop: any) => ({
+        position: stop.position,
+        color: stop.color
+          ? { r: stop.color.r, g: stop.color.g, b: stop.color.b, a: stop.color.a ?? 1 }
+          : null,
+      }));
+    }
+
+    return result;
+  });
 }
 
 // ── Validation helpers: Serialize strokes to RGBA ──
