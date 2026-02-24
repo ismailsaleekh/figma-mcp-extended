@@ -820,6 +820,12 @@ export async function getValidationTree(params: GetValidationTreeParams) {
   return serializeForValidation(node as SceneNode, null);
 }
 
+// Guard against figma.mixed (Symbol) — non-serializable via postMessage
+function safe(value: unknown, fallback: unknown): unknown {
+  if (typeof value === "symbol" || value === undefined) return fallback;
+  return value;
+}
+
 function serializeForValidation(
   node: SceneNode,
   parentId: string | null
@@ -848,27 +854,31 @@ function serializeForValidation(
     absoluteY: bbox.y,
 
     // Layout — safe access with "in" checks
-    layoutMode: "layoutMode" in node ? (node as any).layoutMode : null,
+    layoutMode: "layoutMode" in node ? safe((node as any).layoutMode, null) : null,
     layoutSizingHorizontal: "layoutSizingHorizontal" in node
-      ? (node as any).layoutSizingHorizontal : "FIXED",
+      ? safe((node as any).layoutSizingHorizontal, "FIXED") : "FIXED",
     layoutSizingVertical: "layoutSizingVertical" in node
-      ? (node as any).layoutSizingVertical : "FIXED",
+      ? safe((node as any).layoutSizingVertical, "FIXED") : "FIXED",
     primaryAxisAlignItems: "primaryAxisAlignItems" in node
-      ? (node as any).primaryAxisAlignItems : "MIN",
+      ? safe((node as any).primaryAxisAlignItems, "MIN") : "MIN",
     counterAxisAlignItems: "counterAxisAlignItems" in node
-      ? (node as any).counterAxisAlignItems : "MIN",
-    paddingTop: "paddingTop" in node ? (node as any).paddingTop : 0,
-    paddingRight: "paddingRight" in node ? (node as any).paddingRight : 0,
-    paddingBottom: "paddingBottom" in node ? (node as any).paddingBottom : 0,
-    paddingLeft: "paddingLeft" in node ? (node as any).paddingLeft : 0,
-    itemSpacing: "itemSpacing" in node ? (node as any).itemSpacing : 0,
+      ? safe((node as any).counterAxisAlignItems, "MIN") : "MIN",
+    paddingTop: "paddingTop" in node ? safe((node as any).paddingTop, 0) : 0,
+    paddingRight: "paddingRight" in node ? safe((node as any).paddingRight, 0) : 0,
+    paddingBottom: "paddingBottom" in node ? safe((node as any).paddingBottom, 0) : 0,
+    paddingLeft: "paddingLeft" in node ? safe((node as any).paddingLeft, 0) : 0,
+    itemSpacing: "itemSpacing" in node ? safe((node as any).itemSpacing, 0) : 0,
     layoutPositioning: "layoutPositioning" in node
-      ? (node as any).layoutPositioning : "AUTO",
-    clipsContent: "clipsContent" in node ? (node as any).clipsContent : false,
+      ? safe((node as any).layoutPositioning, "AUTO") : "AUTO",
+    clipsContent: "clipsContent" in node ? safe((node as any).clipsContent, false) : false,
 
     // Styling
-    opacity: "opacity" in node ? (node as any).opacity : 1,
-    cornerRadius: "cornerRadius" in node ? (node as any).cornerRadius : 0,
+    opacity: "opacity" in node ? safe((node as any).opacity, 1) : 1,
+    cornerRadius: "cornerRadius" in node
+      ? (typeof (node as any).cornerRadius === "number"
+        ? (node as any).cornerRadius
+        : ("topLeftRadius" in node ? (node as any).topLeftRadius : 0))
+      : 0,
     fills: validationSerializeFills(node),
     strokes: validationSerializeStrokes(node),
     effects: validationSerializeEffects(node),
@@ -879,12 +889,13 @@ function serializeForValidation(
     fontWeight: node.type === "TEXT" ? validationExtractFontWeight(node as TextNode) : null,
     fontFamily: node.type === "TEXT" ? validationExtractFontFamily(node as TextNode) : null,
     textAlignHorizontal: node.type === "TEXT"
-      ? (node as TextNode).textAlignHorizontal : null,
+      ? safe((node as TextNode).textAlignHorizontal, "LEFT") : null,
     lineHeightPx: node.type === "TEXT" ? validationExtractLineHeight(node as TextNode) : null,
     letterSpacing: node.type === "TEXT" ? validationExtractLetterSpacing(node as TextNode) : null,
     textTruncation: node.type === "TEXT"
-      ? (node as TextNode).textTruncation || "DISABLED" : null,
-    maxLines: node.type === "TEXT" ? (node as TextNode).maxLines || null : null,
+      ? safe((node as TextNode).textTruncation, "DISABLED") : null,
+    maxLines: node.type === "TEXT"
+      ? safe((node as TextNode).maxLines, null) : null,
 
     // Children
     children: [],
@@ -931,7 +942,11 @@ function validationSerializeStrokes(node: SceneNode): unknown[] {
     color: stroke.color
       ? { r: stroke.color.r, g: stroke.color.g, b: stroke.color.b, a: stroke.opacity ?? 1 }
       : null,
-    weight: "strokeWeight" in node ? (node as any).strokeWeight : 1,
+    weight: "strokeWeight" in node
+      ? (typeof (node as any).strokeWeight === "number"
+        ? (node as any).strokeWeight
+        : ("strokeTopWeight" in node ? (node as any).strokeTopWeight : 1))
+      : 1,
   }));
 }
 
@@ -957,22 +972,39 @@ function validationSerializeEffects(node: SceneNode): unknown[] {
 
 function validationExtractFontSize(node: TextNode): number {
   const size = node.fontSize;
-  return typeof size === "number" ? size : 14;
+  if (typeof size === "number") return size;
+  // Mixed — resolve from first character
+  if (node.characters.length > 0) {
+    const rangeSize = node.getRangeFontSize(0, 1);
+    if (typeof rangeSize === "number") return rangeSize;
+  }
+  return 14;
+}
+
+function validationFontNameToWeight(fontName: FontName): number {
+  const style = fontName.style.toLowerCase();
+  if (style.includes("thin")) return 100;
+  if (style.includes("extralight") || style.includes("extra light")) return 200;
+  if (style.includes("light")) return 300;
+  if (style.includes("medium")) return 500;
+  if (style.includes("semibold") || style.includes("semi bold")) return 600;
+  if (style.includes("extrabold") || style.includes("extra bold")) return 800;
+  if (style.includes("black")) return 900;
+  if (style.includes("bold")) return 700;
+  return 400;
 }
 
 function validationExtractFontWeight(node: TextNode): number {
   const fontName = node.fontName;
   if (fontName && typeof fontName === "object" && "style" in fontName) {
-    const style = (fontName as FontName).style.toLowerCase();
-    if (style.includes("thin")) return 100;
-    if (style.includes("extralight") || style.includes("extra light")) return 200;
-    if (style.includes("light")) return 300;
-    if (style.includes("medium")) return 500;
-    if (style.includes("semibold") || style.includes("semi bold")) return 600;
-    if (style.includes("extrabold") || style.includes("extra bold")) return 800;
-    if (style.includes("black")) return 900;
-    if (style.includes("bold")) return 700;
-    return 400;
+    return validationFontNameToWeight(fontName as FontName);
+  }
+  // Mixed — resolve from first character
+  if (node.characters.length > 0) {
+    const rangeName = node.getRangeFontName(0, 1);
+    if (rangeName && typeof rangeName === "object" && "style" in rangeName) {
+      return validationFontNameToWeight(rangeName as FontName);
+    }
   }
   return 400;
 }
@@ -982,6 +1014,13 @@ function validationExtractFontFamily(node: TextNode): string {
   if (fontName && typeof fontName === "object" && "family" in fontName) {
     return (fontName as FontName).family;
   }
+  // Mixed — resolve from first character
+  if (node.characters.length > 0) {
+    const rangeName = node.getRangeFontName(0, 1);
+    if (rangeName && typeof rangeName === "object" && "family" in rangeName) {
+      return (rangeName as FontName).family;
+    }
+  }
   return "Inter";
 }
 
@@ -990,6 +1029,13 @@ function validationExtractLineHeight(node: TextNode): number | null {
   if (lh && typeof lh === "object" && "value" in lh) {
     return (lh as any).value;
   }
+  // Mixed — resolve from first character
+  if (typeof lh === "symbol" && node.characters.length > 0) {
+    const rangeLh = node.getRangeLineHeight(0, 1);
+    if (rangeLh && typeof rangeLh === "object" && "value" in rangeLh) {
+      return (rangeLh as any).value;
+    }
+  }
   return null;
 }
 
@@ -997,6 +1043,13 @@ function validationExtractLetterSpacing(node: TextNode): number | null {
   const ls = node.letterSpacing;
   if (ls && typeof ls === "object" && "value" in ls) {
     return (ls as any).value;
+  }
+  // Mixed — resolve from first character
+  if (typeof ls === "symbol" && node.characters.length > 0) {
+    const rangeLs = node.getRangeLetterSpacing(0, 1);
+    if (rangeLs && typeof rangeLs === "object" && "value" in rangeLs) {
+      return (rangeLs as any).value;
+    }
   }
   return null;
 }

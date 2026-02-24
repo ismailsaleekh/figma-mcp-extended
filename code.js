@@ -6089,6 +6089,11 @@
       return serializeForValidation(node, null);
     });
   }
+  function safe(value, fallback) {
+    if (typeof value === "symbol" || value === void 0)
+      return fallback;
+    return value;
+  }
   function serializeForValidation(node, parentId) {
     const bbox = node.absoluteBoundingBox || { x: 0, y: 0, width: 0, height: 0 };
     const relX = node.x;
@@ -6109,21 +6114,21 @@
       absoluteX: bbox.x,
       absoluteY: bbox.y,
       // Layout — safe access with "in" checks
-      layoutMode: "layoutMode" in node ? node.layoutMode : null,
-      layoutSizingHorizontal: "layoutSizingHorizontal" in node ? node.layoutSizingHorizontal : "FIXED",
-      layoutSizingVertical: "layoutSizingVertical" in node ? node.layoutSizingVertical : "FIXED",
-      primaryAxisAlignItems: "primaryAxisAlignItems" in node ? node.primaryAxisAlignItems : "MIN",
-      counterAxisAlignItems: "counterAxisAlignItems" in node ? node.counterAxisAlignItems : "MIN",
-      paddingTop: "paddingTop" in node ? node.paddingTop : 0,
-      paddingRight: "paddingRight" in node ? node.paddingRight : 0,
-      paddingBottom: "paddingBottom" in node ? node.paddingBottom : 0,
-      paddingLeft: "paddingLeft" in node ? node.paddingLeft : 0,
-      itemSpacing: "itemSpacing" in node ? node.itemSpacing : 0,
-      layoutPositioning: "layoutPositioning" in node ? node.layoutPositioning : "AUTO",
-      clipsContent: "clipsContent" in node ? node.clipsContent : false,
+      layoutMode: "layoutMode" in node ? safe(node.layoutMode, null) : null,
+      layoutSizingHorizontal: "layoutSizingHorizontal" in node ? safe(node.layoutSizingHorizontal, "FIXED") : "FIXED",
+      layoutSizingVertical: "layoutSizingVertical" in node ? safe(node.layoutSizingVertical, "FIXED") : "FIXED",
+      primaryAxisAlignItems: "primaryAxisAlignItems" in node ? safe(node.primaryAxisAlignItems, "MIN") : "MIN",
+      counterAxisAlignItems: "counterAxisAlignItems" in node ? safe(node.counterAxisAlignItems, "MIN") : "MIN",
+      paddingTop: "paddingTop" in node ? safe(node.paddingTop, 0) : 0,
+      paddingRight: "paddingRight" in node ? safe(node.paddingRight, 0) : 0,
+      paddingBottom: "paddingBottom" in node ? safe(node.paddingBottom, 0) : 0,
+      paddingLeft: "paddingLeft" in node ? safe(node.paddingLeft, 0) : 0,
+      itemSpacing: "itemSpacing" in node ? safe(node.itemSpacing, 0) : 0,
+      layoutPositioning: "layoutPositioning" in node ? safe(node.layoutPositioning, "AUTO") : "AUTO",
+      clipsContent: "clipsContent" in node ? safe(node.clipsContent, false) : false,
       // Styling
-      opacity: "opacity" in node ? node.opacity : 1,
-      cornerRadius: "cornerRadius" in node ? node.cornerRadius : 0,
+      opacity: "opacity" in node ? safe(node.opacity, 1) : 1,
+      cornerRadius: "cornerRadius" in node ? typeof node.cornerRadius === "number" ? node.cornerRadius : "topLeftRadius" in node ? node.topLeftRadius : 0 : 0,
       fills: validationSerializeFills(node),
       strokes: validationSerializeStrokes(node),
       effects: validationSerializeEffects(node),
@@ -6132,11 +6137,11 @@
       fontSize: node.type === "TEXT" ? validationExtractFontSize(node) : null,
       fontWeight: node.type === "TEXT" ? validationExtractFontWeight(node) : null,
       fontFamily: node.type === "TEXT" ? validationExtractFontFamily(node) : null,
-      textAlignHorizontal: node.type === "TEXT" ? node.textAlignHorizontal : null,
+      textAlignHorizontal: node.type === "TEXT" ? safe(node.textAlignHorizontal, "LEFT") : null,
       lineHeightPx: node.type === "TEXT" ? validationExtractLineHeight(node) : null,
       letterSpacing: node.type === "TEXT" ? validationExtractLetterSpacing(node) : null,
-      textTruncation: node.type === "TEXT" ? node.textTruncation || "DISABLED" : null,
-      maxLines: node.type === "TEXT" ? node.maxLines || null : null,
+      textTruncation: node.type === "TEXT" ? safe(node.textTruncation, "DISABLED") : null,
+      maxLines: node.type === "TEXT" ? safe(node.maxLines, null) : null,
       // Children
       children: []
     };
@@ -6176,7 +6181,7 @@
         type: stroke.type || "SOLID",
         visible: stroke.visible !== false,
         color: stroke.color ? { r: stroke.color.r, g: stroke.color.g, b: stroke.color.b, a: (_a = stroke.opacity) != null ? _a : 1 } : null,
-        weight: "strokeWeight" in node ? node.strokeWeight : 1
+        weight: "strokeWeight" in node ? typeof node.strokeWeight === "number" ? node.strokeWeight : "strokeTopWeight" in node ? node.strokeTopWeight : 1 : 1
       };
     });
   }
@@ -6199,29 +6204,45 @@
   }
   function validationExtractFontSize(node) {
     const size = node.fontSize;
-    return typeof size === "number" ? size : 14;
+    if (typeof size === "number")
+      return size;
+    if (node.characters.length > 0) {
+      const rangeSize = node.getRangeFontSize(0, 1);
+      if (typeof rangeSize === "number")
+        return rangeSize;
+    }
+    return 14;
+  }
+  function validationFontNameToWeight(fontName) {
+    const style = fontName.style.toLowerCase();
+    if (style.includes("thin"))
+      return 100;
+    if (style.includes("extralight") || style.includes("extra light"))
+      return 200;
+    if (style.includes("light"))
+      return 300;
+    if (style.includes("medium"))
+      return 500;
+    if (style.includes("semibold") || style.includes("semi bold"))
+      return 600;
+    if (style.includes("extrabold") || style.includes("extra bold"))
+      return 800;
+    if (style.includes("black"))
+      return 900;
+    if (style.includes("bold"))
+      return 700;
+    return 400;
   }
   function validationExtractFontWeight(node) {
     const fontName = node.fontName;
     if (fontName && typeof fontName === "object" && "style" in fontName) {
-      const style = fontName.style.toLowerCase();
-      if (style.includes("thin"))
-        return 100;
-      if (style.includes("extralight") || style.includes("extra light"))
-        return 200;
-      if (style.includes("light"))
-        return 300;
-      if (style.includes("medium"))
-        return 500;
-      if (style.includes("semibold") || style.includes("semi bold"))
-        return 600;
-      if (style.includes("extrabold") || style.includes("extra bold"))
-        return 800;
-      if (style.includes("black"))
-        return 900;
-      if (style.includes("bold"))
-        return 700;
-      return 400;
+      return validationFontNameToWeight(fontName);
+    }
+    if (node.characters.length > 0) {
+      const rangeName = node.getRangeFontName(0, 1);
+      if (rangeName && typeof rangeName === "object" && "style" in rangeName) {
+        return validationFontNameToWeight(rangeName);
+      }
     }
     return 400;
   }
@@ -6230,6 +6251,12 @@
     if (fontName && typeof fontName === "object" && "family" in fontName) {
       return fontName.family;
     }
+    if (node.characters.length > 0) {
+      const rangeName = node.getRangeFontName(0, 1);
+      if (rangeName && typeof rangeName === "object" && "family" in rangeName) {
+        return rangeName.family;
+      }
+    }
     return "Inter";
   }
   function validationExtractLineHeight(node) {
@@ -6237,12 +6264,24 @@
     if (lh && typeof lh === "object" && "value" in lh) {
       return lh.value;
     }
+    if (typeof lh === "symbol" && node.characters.length > 0) {
+      const rangeLh = node.getRangeLineHeight(0, 1);
+      if (rangeLh && typeof rangeLh === "object" && "value" in rangeLh) {
+        return rangeLh.value;
+      }
+    }
     return null;
   }
   function validationExtractLetterSpacing(node) {
     const ls = node.letterSpacing;
     if (ls && typeof ls === "object" && "value" in ls) {
       return ls.value;
+    }
+    if (typeof ls === "symbol" && node.characters.length > 0) {
+      const rangeLs = node.getRangeLetterSpacing(0, 1);
+      if (rangeLs && typeof rangeLs === "object" && "value" in rangeLs) {
+        return rangeLs.value;
+      }
     }
     return null;
   }
