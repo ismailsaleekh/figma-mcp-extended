@@ -73,11 +73,12 @@ Set sizing behavior on an auto-layout frame **or any child node** (including TEX
 
 **Supported Node Types**:
 - Auto-layout frames (FRAME, COMPONENT with `layoutMode !== "NONE"`)
+- Frames WITHOUT their own auto-layout that are children of an active auto-layout frame (e.g., StatusBar, SafeAreaBottom — plain frames that need FILL sizing to stretch within their parent)
 - Any child of an active auto-layout frame that exposes `layoutSizingHorizontal` — this includes TEXT nodes, which need FILL sizing to wrap text within a parent's width
 
 **Returns**: `{ id, name, layoutSizingHorizontal, layoutSizingVertical, layoutMode }`
 
-`layoutMode` is the frame's layout mode for auto-layout frames, or `"CHILD"` for non-frame nodes.
+`layoutMode` is the frame's layout mode for auto-layout frames, or `"CHILD"` for non-auto-layout frames that are children of auto-layout parents, or `"CHILD"` for non-frame nodes.
 
 ---
 

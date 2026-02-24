@@ -3956,12 +3956,14 @@
         throw new Error(`Node with ID ${nodeId} not found`);
       }
       const isLayout = isAutoLayoutFrame(node);
-      const isChildOfAutoLayout = !isLayout && "layoutSizingHorizontal" in node && node.parent !== null && isAutoLayoutFrame(node.parent) && node.parent.layoutMode !== "NONE";
+      const parentIsAutoLayout = node.parent !== null && isAutoLayoutFrame(node.parent) && node.parent.layoutMode !== "NONE";
+      const isChildOfAutoLayout = !isLayout && "layoutSizingHorizontal" in node && parentIsAutoLayout;
+      const isNonLayoutFrameInAutoLayout = isLayout && node.layoutMode === "NONE" && parentIsAutoLayout;
       if (!isLayout && !isChildOfAutoLayout) {
         throw new Error(`Node type ${node.type} does not support layout sizing`);
       }
-      if (isLayout && node.layoutMode === "NONE") {
-        throw new Error("Layout sizing can only be set on auto-layout frames");
+      if (isLayout && node.layoutMode === "NONE" && !parentIsAutoLayout) {
+        throw new Error("Layout sizing can only be set on auto-layout frames or children of auto-layout frames");
       }
       const sizable = node;
       if (layoutSizingHorizontal !== void 0) {
@@ -3981,7 +3983,7 @@
         name: node.name,
         layoutSizingHorizontal: sizable.layoutSizingHorizontal,
         layoutSizingVertical: sizable.layoutSizingVertical,
-        layoutMode: isLayout ? node.layoutMode : "CHILD"
+        layoutMode: isNonLayoutFrameInAutoLayout ? "CHILD" : (isLayout ? node.layoutMode : "CHILD")
       };
     });
   }

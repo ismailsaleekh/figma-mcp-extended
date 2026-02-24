@@ -128,22 +128,35 @@ export async function setLayoutSizing(params: SetLayoutSizingParams) {
     throw new Error(`Node with ID ${nodeId} not found`);
   }
 
-  // Accept both auto-layout frames AND text/other nodes that are children
-  // of auto-layout frames (they support layoutSizingHorizontal/Vertical too)
+  // Accept three cases:
+  // 1. Auto-layout frames (FRAME/COMPONENT with layoutMode !== "NONE")
+  // 2. Non-frame nodes (TEXT, VECTOR, etc.) that are children of auto-layout frames
+  // 3. Frames WITHOUT their own auto-layout that are children of auto-layout frames
+  //    (e.g., StatusBar, SafeAreaBottom — plain frames that need FILL sizing)
   const isLayout = isAutoLayoutFrame(node);
-  const isChildOfAutoLayout =
-    !isLayout &&
-    "layoutSizingHorizontal" in node &&
+  const parentIsAutoLayout =
     node.parent !== null &&
     isAutoLayoutFrame(node.parent) &&
     (node.parent as AutoLayoutFrame).layoutMode !== "NONE";
+
+  const isChildOfAutoLayout =
+    !isLayout &&
+    "layoutSizingHorizontal" in node &&
+    parentIsAutoLayout;
+
+  // A frame without its own auto-layout can still have sizing set
+  // if it's a child of an auto-layout parent
+  const isNonLayoutFrameInAutoLayout =
+    isLayout &&
+    node.layoutMode === "NONE" &&
+    parentIsAutoLayout;
 
   if (!isLayout && !isChildOfAutoLayout) {
     throw new Error(`Node type ${node.type} does not support layout sizing`);
   }
 
-  if (isLayout && node.layoutMode === "NONE") {
-    throw new Error("Layout sizing can only be set on auto-layout frames");
+  if (isLayout && node.layoutMode === "NONE" && !parentIsAutoLayout) {
+    throw new Error("Layout sizing can only be set on auto-layout frames or children of auto-layout frames");
   }
 
   const sizable = node as SceneNode & {
@@ -170,7 +183,7 @@ export async function setLayoutSizing(params: SetLayoutSizingParams) {
     name: node.name,
     layoutSizingHorizontal: sizable.layoutSizingHorizontal,
     layoutSizingVertical: sizable.layoutSizingVertical,
-    layoutMode: isLayout ? node.layoutMode : "CHILD",
+    layoutMode: isNonLayoutFrameInAutoLayout ? "CHILD" : (isLayout ? node.layoutMode : "CHILD"),
   };
 }
 
