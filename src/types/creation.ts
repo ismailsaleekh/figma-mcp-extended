@@ -26,7 +26,7 @@ export interface CreateFrameParams extends ParamsBase {
   height?: number;
   name?: string;
   parentId?: string;
-  fillColor?: RGBA;
+  fillColor?: RGBA | '__none__';
   strokeColor?: RGBA;
   strokeWeight?: number;
   clipsContent?: boolean;

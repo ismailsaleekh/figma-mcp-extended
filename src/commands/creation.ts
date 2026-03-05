@@ -227,8 +227,10 @@ export async function createFrame(
     }
   }
 
-  // Set fill color if provided
-  if (fillColor) {
+  // Set fill color if provided, or clear fills for transparent
+  if (fillColor === '__none__') {
+    frame.fills = [];
+  } else if (fillColor) {
     frame.fills = [createSolidPaint(fillColor)];
   }
 

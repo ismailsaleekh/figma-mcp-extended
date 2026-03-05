@@ -3000,7 +3000,9 @@
           frame.cornerRadius = cornerRadius;
         }
       }
-      if (fillColor) {
+      if (fillColor === "__none__") {
+        frame.fills = [];
+      } else if (fillColor) {
         frame.fills = [createSolidPaint(fillColor)];
       }
       if (strokeColor) {
