@@ -3983,7 +3983,7 @@
         name: node.name,
         layoutSizingHorizontal: sizable.layoutSizingHorizontal,
         layoutSizingVertical: sizable.layoutSizingVertical,
-        layoutMode: isNonLayoutFrameInAutoLayout ? "CHILD" : (isLayout ? node.layoutMode : "CHILD")
+        layoutMode: isNonLayoutFrameInAutoLayout ? "CHILD" : isLayout ? node.layoutMode : "CHILD"
       };
     });
   }
@@ -4083,19 +4083,33 @@
           const parentHeight = parent.height;
           const nodeWidth = sceneNode.width;
           const nodeHeight = sceneNode.height;
-          if (typeof left === "number") {
+          const hasBothLR = typeof left === "number" && typeof right === "number";
+          const hasBothTB = typeof top === "number" && typeof bottom === "number";
+          if (hasBothLR) {
+            sceneNode.x = left;
+            const newWidth = parentWidth - left - right;
+            if (newWidth > 0) {
+              sceneNode.resize(newWidth, sceneNode.height);
+            }
+          } else if (typeof left === "number") {
             sceneNode.x = left;
           } else if (typeof right === "number") {
             sceneNode.x = parentWidth - nodeWidth - right;
           }
-          if (typeof top === "number") {
+          if (hasBothTB) {
+            sceneNode.y = top;
+            const newHeight = parentHeight - top - bottom;
+            if (newHeight > 0) {
+              sceneNode.resize(sceneNode.width, newHeight);
+            }
+          } else if (typeof top === "number") {
             sceneNode.y = top;
           } else if (typeof bottom === "number") {
             sceneNode.y = parentHeight - nodeHeight - bottom;
           }
           sceneNode.constraints = {
-            horizontal: typeof right === "number" ? "MAX" : "MIN",
-            vertical: typeof bottom === "number" ? "MAX" : "MIN"
+            horizontal: hasBothLR ? "STRETCH" : typeof right === "number" ? "MAX" : "MIN",
+            vertical: hasBothTB ? "STRETCH" : typeof bottom === "number" ? "MAX" : "MIN"
           };
         } else if (x !== void 0 || y !== void 0) {
           if (x !== void 0)
@@ -6163,17 +6177,20 @@
     if (!Array.isArray(fills))
       return [];
     return fills.map((fill) => {
-      var _a, _b;
+      var _a;
       const result = {
         type: fill.type || "SOLID",
         visible: fill.visible !== false,
         color: fill.color ? { r: fill.color.r, g: fill.color.g, b: fill.color.b, a: (_a = fill.opacity) != null ? _a : 1 } : null
       };
       if (fill.gradientStops && Array.isArray(fill.gradientStops)) {
-        result.gradientStops = fill.gradientStops.map((stop) => ({
-          position: stop.position,
-          color: stop.color ? { r: stop.color.r, g: stop.color.g, b: stop.color.b, a: (_b = stop.color.a) != null ? _b : 1 } : null
-        }));
+        result.gradientStops = fill.gradientStops.map((stop) => {
+          var _a2;
+          return {
+            position: stop.position,
+            color: stop.color ? { r: stop.color.r, g: stop.color.g, b: stop.color.b, a: (_a2 = stop.color.a) != null ? _a2 : 1 } : null
+          };
+        });
       }
       return result;
     });

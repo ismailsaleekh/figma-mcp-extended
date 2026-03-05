@@ -303,22 +303,41 @@ export async function setLayoutPositioning(params: SetLayoutPositioningParams) {
       const nodeWidth = sceneNode.width;
       const nodeHeight = sceneNode.height;
 
-      if (typeof left === "number") {
+      const hasBothLR = typeof left === "number" && typeof right === "number";
+      const hasBothTB = typeof top === "number" && typeof bottom === "number";
+
+      // Horizontal positioning
+      if (hasBothLR) {
+        // Both left+right: stretch to fill parent minus margins
+        sceneNode.x = left;
+        const newWidth = parentWidth - left - right;
+        if (newWidth > 0) {
+          sceneNode.resize(newWidth, sceneNode.height);
+        }
+      } else if (typeof left === "number") {
         sceneNode.x = left;
       } else if (typeof right === "number") {
         sceneNode.x = parentWidth - nodeWidth - right;
       }
 
-      if (typeof top === "number") {
+      // Vertical positioning
+      if (hasBothTB) {
+        // Both top+bottom: stretch to fill parent minus margins
+        sceneNode.y = top;
+        const newHeight = parentHeight - top - bottom;
+        if (newHeight > 0) {
+          sceneNode.resize(sceneNode.width, newHeight);
+        }
+      } else if (typeof top === "number") {
         sceneNode.y = top;
       } else if (typeof bottom === "number") {
         sceneNode.y = parentHeight - nodeHeight - bottom;
       }
 
-      // Set constraints to match the positioning edge
+      // Set constraints — STRETCH when both edges are specified
       sceneNode.constraints = {
-        horizontal: typeof right === "number" ? "MAX" : "MIN",
-        vertical: typeof bottom === "number" ? "MAX" : "MIN",
+        horizontal: hasBothLR ? "STRETCH" : (typeof right === "number" ? "MAX" : "MIN"),
+        vertical: hasBothTB ? "STRETCH" : (typeof bottom === "number" ? "MAX" : "MIN"),
       };
     } else if (x !== undefined || y !== undefined) {
       // Legacy x/y positioning
