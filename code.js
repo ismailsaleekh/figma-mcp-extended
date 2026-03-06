@@ -3738,13 +3738,11 @@
           };
         }
       }
-      if (layoutMode !== "NONE") {
-        if (layoutSizingHorizontal !== "FIXED") {
-          frame.layoutSizingHorizontal = layoutSizingHorizontal;
-        }
-        if (layoutSizingVertical !== "FIXED") {
-          frame.layoutSizingVertical = layoutSizingVertical;
-        }
+      if (layoutSizingHorizontal !== "FIXED") {
+        frame.layoutSizingHorizontal = layoutSizingHorizontal;
+      }
+      if (layoutSizingVertical !== "FIXED") {
+        frame.layoutSizingVertical = layoutSizingVertical;
       }
       if (gradientType && gradientStops && gradientStops.length >= 2) {
         frame.fills = [buildGradientPaint(gradientType, gradientStops, gradientAngle)];

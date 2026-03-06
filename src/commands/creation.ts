@@ -1182,14 +1182,14 @@ export async function createFrameFull(
     }
   }
 
-  // Non-FIXED sizing (must be after appending to parent)
-  if (layoutMode !== "NONE") {
-    if (layoutSizingHorizontal !== "FIXED") {
-      frame.layoutSizingHorizontal = layoutSizingHorizontal;
-    }
-    if (layoutSizingVertical !== "FIXED") {
-      frame.layoutSizingVertical = layoutSizingVertical;
-    }
+  // Non-FIXED sizing (must be after appending to parent).
+  // Applies to BOTH auto-layout frames AND non-auto-layout children
+  // of auto-layout parents (e.g., StatusBar, SafeAreaBottom with width: fill).
+  if (layoutSizingHorizontal !== "FIXED") {
+    frame.layoutSizingHorizontal = layoutSizingHorizontal;
+  }
+  if (layoutSizingVertical !== "FIXED") {
+    frame.layoutSizingVertical = layoutSizingVertical;
   }
 
   // Gradient fill
