@@ -75,6 +75,8 @@ When you send a command, you receive **two broadcast messages**:
 }
 ```
 
+Filter these out — they are not results. Check `sender === "You"` to skip.
+
 ### 2. Result Message (the actual response)
 
 ```json
@@ -83,12 +85,29 @@ When you send a command, you receive **two broadcast messages**:
   "sender": "User",
   "channel": "channel_name",
   "message": {
+    "commandId": "unique_identifier",
     "result": { ... }
   }
 }
 ```
 
-**Tip**: Use the `commandId` to correlate requests with responses when sending multiple commands.
+The `commandId` in the response matches the `commandId` you sent in the request. Use this to correlate requests with responses.
+
+---
+
+## Parallel Commands
+
+Multiple commands can be in-flight simultaneously. Each response includes the `commandId` from the original request, so clients can match them correctly regardless of arrival order.
+
+Commands are executed **serially** inside the plugin (a queue ensures each command completes before the next starts), but multiple clients can send commands in parallel — they pipeline through the queue and each response is routed back by its `commandId`.
+
+```javascript
+// Example: two commands in parallel using the websocket.cjs utility
+const [frameInfo, textInfo] = await Promise.all([
+  sendCommand('get_node_info', { nodeId: '1:2' }),
+  sendCommand('get_node_info', { nodeId: '3:4' }),
+]);
+```
 
 ---
 
@@ -102,9 +121,9 @@ Errors are returned in the result message:
   "sender": "User",
   "channel": "channel_name",
   "message": {
-    "result": {
-      "error": "Error description"
-    }
+    "commandId": "unique_identifier",
+    "error": "Error description",
+    "result": {}
   }
 }
 ```

@@ -48,12 +48,13 @@ ws.on('message', (data) => {
   // Skip system/echo messages
   if (parsed.type === 'system' || parsed.sender === 'You') return;
 
-  // Handle results
+  // Handle results — match by commandId for parallel safety
   if (parsed.type === 'broadcast' && parsed.sender === 'User') {
-    const result = parsed.message.result;
-    if (result) {
-      results.push(result);
-      console.log('Result received');
+    const msg = parsed.message;
+    const cmdId = msg.commandId || msg.id;
+    if (msg.result) {
+      results.push({ commandId: cmdId, result: msg.result });
+      console.log('Result received:', cmdId);
       cleanup();
     }
   }
@@ -81,6 +82,8 @@ function cleanup() {
 **When to use**: 50+ child nodes, 100+ components, deep nesting (5+ levels), or timeouts.
 
 ### Sequential Pattern
+
+Send one command at a time, waiting for the response before sending the next. Match responses by `commandId`.
 
 ```javascript
 const frameIds = ["123:456", "123:457", "123:458"];
@@ -110,6 +113,22 @@ ws.on('message', (data) => {
 });
 
 analyzeNext();
+```
+
+### Parallel Pattern (via websocket.cjs)
+
+Multiple commands can be sent simultaneously. The plugin queues them internally and returns each response with the matching `commandId`. Use `websocket.cjs` for automatic ID correlation:
+
+```javascript
+const { createCommandSender, WEBSOCKET_CONFIG } = require('./websocket.cjs');
+const ws = new WebSocket(WEBSOCKET_CONFIG.url);
+const { sendCommand, handleMessage } = createCommandSender(ws, CHANNEL_ID);
+ws.on('message', handleMessage);
+
+// Send all at once — responses are matched by commandId automatically
+const results = await Promise.all(
+  frameIds.map(id => sendCommand('get_node_info', { nodeId: id }))
+);
 ```
 
 **Other strategies**: Pagination (batch node IDs in groups of 10), Depth-limited traversal (stop at maxDepth).

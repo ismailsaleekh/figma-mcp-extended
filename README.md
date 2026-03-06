@@ -277,6 +277,7 @@ bun run typecheck
 - **WebSocket:** Built-in Bun WebSocket API
 - **Figma Plugin API:** Latest version
 - **Communication:** Channel-based WebSocket messaging
+- **Execution:** Serial command queue with `commandId`-based response correlation (supports parallel clients)
 
 ## Contributing
 

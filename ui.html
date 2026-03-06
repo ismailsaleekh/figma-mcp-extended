@@ -412,13 +412,16 @@
 
         // If it's a new command
         if (data.command) {
+          // Support both naming conventions: external clients send commandId,
+          // internal UI sendCommand sends id. Prefer commandId for external.
+          const correlationId = data.commandId || data.id;
           try {
             // Send the command to the plugin code
             parent.postMessage(
               {
                 pluginMessage: {
                   type: "execute-command",
-                  id: data.id,
+                  id: correlationId,
                   command: data.command,
                   params: data.params,
                 },
@@ -428,7 +431,7 @@
           } catch (error) {
             // Send error back to WebSocket
             sendErrorResponse(
-              data.id,
+              correlationId,
               error.message || "Error executing command"
             );
           }
@@ -483,6 +486,7 @@
             channel: state.channel,
             message: {
               id,
+              commandId: id,
               result,
             },
           })
@@ -503,6 +507,7 @@
             channel: state.channel,
             message: {
               id,
+              commandId: id,
               error: errorMessage,
               result: {}
             },

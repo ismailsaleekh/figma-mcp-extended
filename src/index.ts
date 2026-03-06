@@ -348,9 +348,36 @@ const state: PluginState = {
   serverPort: 3055,
 };
 
+// ============================================================================
+// Command Queue — serializes async command execution to prevent interleaving
+// ============================================================================
+//
+// The Figma plugin sandbox is single-threaded but async handlers can interleave
+// at `await` points. Without a queue, two concurrent commands targeting different
+// nodes could race (e.g., getNodeByIdAsync returning a node that another handler
+// just deleted, or children appended in nondeterministic order).
+//
+// The queue ensures each command runs to completion before the next starts.
+// Multiple external clients can still send commands in parallel — they pipeline
+// through the queue and each response is routed back by its unique `msg.id`.
+// ============================================================================
+
+const commandQueue: Array<() => Promise<void>> = [];
+let processingQueue = false;
+
+async function drainCommandQueue(): Promise<void> {
+  if (processingQueue) return;
+  processingQueue = true;
+  while (commandQueue.length > 0) {
+    const task = commandQueue.shift()!;
+    await task();
+  }
+  processingQueue = false;
+}
+
 figma.showUI(__html__, { width: 350, height: 450 });
 
-figma.ui.onmessage = async (msg: UIMessage) => {
+figma.ui.onmessage = (msg: UIMessage) => {
   switch (msg.type) {
     case "update-settings":
       updateSettings(msg);
@@ -364,21 +391,24 @@ figma.ui.onmessage = async (msg: UIMessage) => {
       figma.closePlugin();
       break;
     case "execute-command":
-      try {
-        const result = await handleCommand(msg.command!, msg.params);
-        figma.ui.postMessage({
-          type: "command-result",
-          id: msg.id,
-          result,
-        });
-      } catch (error) {
-        const err = error as Error;
-        figma.ui.postMessage({
-          type: "command-error",
-          id: msg.id,
-          error: err.message || "Error executing command",
-        });
-      }
+      commandQueue.push(async () => {
+        try {
+          const result = await handleCommand(msg.command!, msg.params);
+          figma.ui.postMessage({
+            type: "command-result",
+            id: msg.id,
+            result,
+          });
+        } catch (error) {
+          const err = error as Error;
+          figma.ui.postMessage({
+            type: "command-error",
+            id: msg.id,
+            error: err.message || "Error executing command",
+          });
+        }
+      });
+      drainCommandQueue();
       break;
   }
 };

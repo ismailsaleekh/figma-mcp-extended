@@ -6853,8 +6853,22 @@
       var state = {
         serverPort: 3055
       };
+      var commandQueue = [];
+      var processingQueue = false;
+      function drainCommandQueue() {
+        return __async(this, null, function* () {
+          if (processingQueue)
+            return;
+          processingQueue = true;
+          while (commandQueue.length > 0) {
+            const task = commandQueue.shift();
+            yield task();
+          }
+          processingQueue = false;
+        });
+      }
       figma.showUI(__html__, { width: 350, height: 450 });
-      figma.ui.onmessage = (msg) => __async(exports, null, function* () {
+      figma.ui.onmessage = (msg) => {
         switch (msg.type) {
           case "update-settings":
             updateSettings(msg);
@@ -6868,24 +6882,27 @@
             figma.closePlugin();
             break;
           case "execute-command":
-            try {
-              const result = yield handleCommand(msg.command, msg.params);
-              figma.ui.postMessage({
-                type: "command-result",
-                id: msg.id,
-                result
-              });
-            } catch (error) {
-              const err = error;
-              figma.ui.postMessage({
-                type: "command-error",
-                id: msg.id,
-                error: err.message || "Error executing command"
-              });
-            }
+            commandQueue.push(() => __async(exports, null, function* () {
+              try {
+                const result = yield handleCommand(msg.command, msg.params);
+                figma.ui.postMessage({
+                  type: "command-result",
+                  id: msg.id,
+                  result
+                });
+              } catch (error) {
+                const err = error;
+                figma.ui.postMessage({
+                  type: "command-error",
+                  id: msg.id,
+                  error: err.message || "Error executing command"
+                });
+              }
+            }));
+            drainCommandQueue();
             break;
         }
-      });
+      };
       figma.on("run", () => {
         figma.ui.postMessage({ type: "auto-connect" });
       });
