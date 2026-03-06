@@ -25,18 +25,22 @@ interface GroupResult {
 export async function groupNodes(params: GroupNodesParams): Promise<GroupResult> {
   const { nodeIds, name = "Group" } = params;
 
-  if (!nodeIds || !Array.isArray(nodeIds) || nodeIds.length < 1) {
+  if (nodeIds.length < 1) {
     throw new Error("nodeIds must be an array with at least 1 node ID");
   }
 
+  const resolved = await Promise.all(
+    nodeIds.map((nodeId) => figma.getNodeByIdAsync(nodeId))
+  );
+
   const nodes: SceneNode[] = [];
-  for (const nodeId of nodeIds) {
-    const node = await figma.getNodeByIdAsync(nodeId);
+  for (let i = 0; i < resolved.length; i++) {
+    const node = resolved[i];
     if (!node) {
-      throw new Error(`Node not found with ID: ${nodeId}`);
+      throw new Error(`Node not found with ID: ${nodeIds[i]}`);
     }
     if (!("parent" in node)) {
-      throw new Error(`Node cannot be grouped: ${nodeId}`);
+      throw new Error(`Node cannot be grouped: ${nodeIds[i]}`);
     }
     nodes.push(node as SceneNode);
   }
@@ -75,10 +79,6 @@ interface UngroupResult {
  */
 export async function ungroupNodes(params: UngroupNodesParams): Promise<UngroupResult> {
   const { nodeId } = params;
-
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
 
   const node = await figma.getNodeByIdAsync(nodeId);
   if (!node) {
@@ -125,14 +125,6 @@ interface SetRotationResult {
 export async function setRotation(params: SetRotationParams): Promise<SetRotationResult> {
   const { nodeId, rotation } = params;
 
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
-
-  if (rotation === undefined) {
-    throw new Error("Missing rotation parameter");
-  }
-
   const node = await figma.getNodeByIdAsync(nodeId);
   if (!node) {
     throw new Error(`Node not found with ID: ${nodeId}`);
@@ -163,14 +155,6 @@ interface SetZIndexResult {
  */
 export async function setZIndex(params: SetZIndexParams): Promise<SetZIndexResult> {
   const { nodeId, position } = params;
-
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
-
-  if (position === undefined) {
-    throw new Error("Missing position parameter");
-  }
 
   const node = await figma.getNodeByIdAsync(nodeId);
   if (!node) {
@@ -232,14 +216,6 @@ interface RenameResult {
 export async function renameNode(params: RenameNodeParams): Promise<RenameResult> {
   const { nodeId, name } = params;
 
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
-
-  if (name === undefined) {
-    throw new Error("Missing name parameter");
-  }
-
   const node = await figma.getNodeByIdAsync(nodeId);
   if (!node) {
     throw new Error(`Node not found with ID: ${nodeId}`);
@@ -266,14 +242,6 @@ interface SetVisibilityResult {
  */
 export async function setVisibility(params: SetVisibilityParams): Promise<SetVisibilityResult> {
   const { nodeId, visible } = params;
-
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
-
-  if (visible === undefined) {
-    throw new Error("Missing visible parameter");
-  }
 
   const node = await figma.getNodeByIdAsync(nodeId);
   if (!node) {
@@ -305,10 +273,6 @@ interface SetConstraintsResult {
  */
 export async function setConstraints(params: SetConstraintsParams): Promise<SetConstraintsResult> {
   const { nodeId, horizontal, vertical } = params;
-
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
 
   const node = await figma.getNodeByIdAsync(nodeId);
   if (!node) {
@@ -346,14 +310,6 @@ interface LockResult {
  */
 export async function lockNode(params: LockNodeParams): Promise<LockResult> {
   const { nodeId, locked } = params;
-
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
-
-  if (locked === undefined) {
-    throw new Error("Missing locked parameter");
-  }
 
   const node = await figma.getNodeByIdAsync(nodeId);
   if (!node) {

@@ -20,7 +20,8 @@ import { collectNodesToProcess, highlightNodeWithFill } from "../helpers/nodes";
 async function processTextNode(
   node: TextNode,
   parentPath: string[],
-  depth: number
+  depth: number,
+  highlight: boolean = true
 ): Promise<TextNodeInfo | null> {
   if (node.type !== "TEXT") return null;
 
@@ -49,7 +50,9 @@ async function processTextNode(
       depth: depth,
     };
 
-    await highlightNodeWithFill(node, 100);
+    if (highlight) {
+      await highlightNodeWithFill(node, 100);
+    }
 
     return safeTextNode;
   } catch (nodeErr) {
@@ -62,20 +65,21 @@ async function findTextNodes(
   node: SceneNode,
   parentPath: string[] = [],
   depth: number = 0,
-  textNodes: TextNodeInfo[] = []
+  textNodes: TextNodeInfo[] = [],
+  highlight: boolean = true
 ): Promise<void> {
   if (node.visible === false) return;
 
   const nodePath = [...parentPath, node.name || `Unnamed ${node.type}`];
 
   if (node.type === "TEXT") {
-    const result = await processTextNode(node, nodePath, depth);
+    const result = await processTextNode(node, nodePath, depth, highlight);
     if (result) textNodes.push(result);
   }
 
   if ("children" in node) {
     for (const child of node.children) {
-      await findTextNodes(child, nodePath, depth + 1, textNodes);
+      await findTextNodes(child, nodePath, depth + 1, textNodes, highlight);
     }
   }
 }
@@ -85,6 +89,7 @@ export async function scanTextNodes(params: ScanTextNodesParams & { commandId?: 
     nodeId,
     useChunking = true,
     chunkSize = 10,
+    highlight = true,
     commandId = generateCommandId(),
   } = params;
 
@@ -96,7 +101,7 @@ export async function scanTextNodes(params: ScanTextNodesParams & { commandId?: 
   if (!useChunking) {
     const textNodes: TextNodeInfo[] = [];
     sendProgressUpdate(commandId, "scan_text_nodes", "started", 0, 1, 0, "Starting scan");
-    await findTextNodes(node as SceneNode, [], 0, textNodes);
+    await findTextNodes(node as SceneNode, [], 0, textNodes, highlight);
     sendProgressUpdate(commandId, "scan_text_nodes", "completed", 100, textNodes.length, textNodes.length, "Scan complete");
     return { success: true, count: textNodes.length, textNodes, commandId };
   }
@@ -117,10 +122,9 @@ export async function scanTextNodes(params: ScanTextNodesParams & { commandId?: 
 
     for (const nodeInfo of chunkNodes) {
       if (nodeInfo.node.type === "TEXT") {
-        const result = await processTextNode(nodeInfo.node as TextNode, nodeInfo.parentPath, nodeInfo.depth);
+        const result = await processTextNode(nodeInfo.node as TextNode, nodeInfo.parentPath, nodeInfo.depth, highlight);
         if (result) allTextNodes.push(result);
       }
-      await delay(5);
     }
 
     processedNodes += chunkNodes.length;
@@ -142,9 +146,6 @@ export async function scanTextNodes(params: ScanTextNodesParams & { commandId?: 
 export async function setTextContent(params: SetTextContentParams) {
   const { nodeId, text } = params;
 
-  if (!nodeId) throw new Error("Missing nodeId parameter");
-  if (text === undefined) throw new Error("Missing text parameter");
-
   const node = await figma.getNodeByIdAsync(nodeId);
   if (!node) throw new Error(`Node not found with ID: ${nodeId}`);
   if (node.type !== "TEXT") throw new Error(`Node is not a text node: ${nodeId}`);
@@ -163,10 +164,6 @@ export async function setTextContent(params: SetTextContentParams) {
 
 export async function setMultipleTextContents(params: SetMultipleTextContentsParams & { commandId?: string }) {
   const { nodeId, text, commandId = generateCommandId() } = params;
-
-  if (!nodeId || !text || !Array.isArray(text)) {
-    throw new Error("Missing required parameters");
-  }
 
   sendProgressUpdate(commandId, "set_multiple_text_contents", "started", 0, text.length, 0, "Starting text replacement");
 
@@ -207,7 +204,7 @@ export async function setMultipleTextContents(params: SetMultipleTextContentsPar
 
     sendProgressUpdate(commandId, "set_multiple_text_contents", "in_progress", Math.round(((i + chunk.length) / text.length) * 100), text.length, successCount + failureCount, `Processed ${successCount + failureCount}/${text.length}`);
 
-    if (i + CHUNK_SIZE < text.length) await delay(1000);
+    if (i + CHUNK_SIZE < text.length) await delay(50);
   }
 
   sendProgressUpdate(commandId, "set_multiple_text_contents", "completed", 100, text.length, successCount + failureCount, `Complete: ${successCount} successful, ${failureCount} failed`);
@@ -235,14 +232,6 @@ interface SetFontFamilyResult {
  */
 export async function setFontFamily(params: SetFontFamilyParams): Promise<SetFontFamilyResult> {
   const { nodeId, fontFamily, fontStyle = "Regular" } = params;
-
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
-
-  if (!fontFamily) {
-    throw new Error("Missing fontFamily parameter");
-  }
 
   const node = await figma.getNodeByIdAsync(nodeId);
   if (!node) {
@@ -284,11 +273,7 @@ interface SetFontSizeResult {
 export async function setFontSize(params: SetFontSizeParams): Promise<SetFontSizeResult> {
   const { nodeId, fontSize } = params;
 
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
-
-  if (fontSize === undefined || fontSize <= 0) {
+  if (fontSize <= 0) {
     throw new Error("fontSize must be a positive number");
   }
 
@@ -335,11 +320,7 @@ interface SetFontWeightResult {
 export async function setFontWeight(params: SetFontWeightParams): Promise<SetFontWeightResult> {
   const { nodeId, fontWeight } = params;
 
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
-
-  if (fontWeight === undefined || fontWeight < 100 || fontWeight > 900) {
+  if (fontWeight < 100 || fontWeight > 900) {
     throw new Error("fontWeight must be between 100 and 900");
   }
 
@@ -391,10 +372,6 @@ interface SetTextAlignmentResult {
 export async function setTextAlignment(params: SetTextAlignmentParams): Promise<SetTextAlignmentResult> {
   const { nodeId, horizontalAlign, verticalAlign } = params;
 
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
-
   const node = await figma.getNodeByIdAsync(nodeId);
   if (!node) {
     throw new Error(`Node not found with ID: ${nodeId}`);
@@ -439,10 +416,6 @@ interface SetLineHeightResult {
  */
 export async function setLineHeight(params: SetLineHeightParams): Promise<SetLineHeightResult> {
   const { nodeId, lineHeight, unit = "PIXELS" } = params;
-
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
 
   if (lineHeight === undefined) {
     throw new Error("Missing lineHeight parameter");
@@ -490,14 +463,6 @@ interface SetLetterSpacingResult {
 export async function setLetterSpacing(params: SetLetterSpacingParams): Promise<SetLetterSpacingResult> {
   const { nodeId, letterSpacing, unit = "PIXELS" } = params;
 
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
-
-  if (letterSpacing === undefined) {
-    throw new Error("Missing letterSpacing parameter");
-  }
-
   const node = await figma.getNodeByIdAsync(nodeId);
   if (!node) {
     throw new Error(`Node not found with ID: ${nodeId}`);
@@ -537,11 +502,7 @@ interface SetTextTruncationResult {
 export async function setTextTruncation(params: SetTextTruncationParams): Promise<SetTextTruncationResult> {
   const { nodeId, maxLines } = params;
 
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
-
-  if (maxLines === undefined || maxLines < 1) {
+  if (maxLines < 1) {
     throw new Error("maxLines must be a positive integer");
   }
 

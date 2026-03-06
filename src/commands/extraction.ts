@@ -170,9 +170,14 @@ export async function getCompleteFileData() {
     sendProgressUpdate(commandId, "get_complete_file_data", "in_progress", Math.round(((i + 1) / pages.length) * 80), pages.length, i + 1, `Processed page: ${page.name}`);
   }
 
-  completeData.styles = await getDocumentStyles();
-  completeData.components = await getDocumentComponents();
-  completeData.variables = await getDocumentVariables();
+  const [styles, components, variables] = await Promise.all([
+    getDocumentStyles(),
+    getDocumentComponents(),
+    getDocumentVariables(),
+  ]);
+  completeData.styles = styles;
+  completeData.components = components;
+  completeData.variables = variables;
 
   sendProgressUpdate(commandId, "get_complete_file_data", "completed", 100, 1, 1, "Extraction complete");
 

@@ -15,10 +15,6 @@ import type {
 export async function setFillColor(params: SetFillColorParams) {
   const { nodeId, color: rgbColor } = params;
 
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
-
   const node = await figma.getNodeByIdAsync(nodeId);
   if (!node) {
     throw new Error(`Node not found with ID: ${nodeId}`);
@@ -49,10 +45,6 @@ export async function setFillColor(params: SetFillColorParams) {
 
 export async function setStrokeColor(params: SetStrokeColorParams) {
   const { nodeId, color, weight = 1 } = params;
-
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
 
   const node = await figma.getNodeByIdAsync(nodeId);
   if (!node) {
@@ -96,14 +88,6 @@ export async function setStrokeColor(params: SetStrokeColorParams) {
 
 export async function setCornerRadius(params: SetCornerRadiusParams) {
   const { nodeId, radius, corners } = params;
-
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
-
-  if (radius === undefined) {
-    throw new Error("Missing radius parameter");
-  }
 
   const node = await figma.getNodeByIdAsync(nodeId);
   if (!node) {
@@ -152,11 +136,7 @@ interface SetOpacityResult {
 export async function setOpacity(params: SetOpacityParams): Promise<SetOpacityResult> {
   const { nodeId, opacity } = params;
 
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
-
-  if (opacity === undefined || opacity < 0 || opacity > 1) {
+  if (opacity < 0 || opacity > 1) {
     throw new Error("opacity must be a number between 0 and 1");
   }
 
@@ -190,14 +170,6 @@ interface SetEffectsResult {
  */
 export async function setEffects(params: SetEffectsParams): Promise<SetEffectsResult> {
   const { nodeId, effects } = params;
-
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
-
-  if (!effects || !Array.isArray(effects)) {
-    throw new Error("effects must be an array");
-  }
 
   const node = await figma.getNodeByIdAsync(nodeId);
   if (!node) {
@@ -255,11 +227,7 @@ interface SetGradientFillResult {
 export async function setGradientFill(params: SetGradientFillParams): Promise<SetGradientFillResult> {
   const { nodeId, gradientType, stops, angle = 0 } = params;
 
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
-
-  if (!stops || !Array.isArray(stops) || stops.length < 2) {
+  if (stops.length < 2) {
     throw new Error("stops must be an array with at least 2 color stops");
   }
 
@@ -316,14 +284,6 @@ interface SetBlendModeResult {
 export async function setBlendMode(params: SetBlendModeParams): Promise<SetBlendModeResult> {
   const { nodeId, blendMode } = params;
 
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
-
-  if (!blendMode) {
-    throw new Error("Missing blendMode parameter");
-  }
-
   const node = await figma.getNodeByIdAsync(nodeId);
   if (!node) {
     throw new Error(`Node not found with ID: ${nodeId}`);
@@ -357,10 +317,6 @@ interface SetStrokeStyleResult {
  */
 export async function setStrokeStyle(params: SetStrokeStyleParams): Promise<SetStrokeStyleResult> {
   const { nodeId, strokeAlign, strokeCap, strokeJoin, dashPattern } = params;
-
-  if (!nodeId) {
-    throw new Error("Missing nodeId parameter");
-  }
 
   const node = await figma.getNodeByIdAsync(nodeId);
   if (!node) {

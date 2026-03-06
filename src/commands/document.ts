@@ -160,15 +160,11 @@ export async function getNodeInfo(nodeId: string): Promise<FilteredNode | null> 
  */
 export async function getNodesInfo(nodeIds: string[]): Promise<NodeInfoResponse[]> {
   try {
-    const nodes = await Promise.all(
-      nodeIds.map((id) => figma.getNodeByIdAsync(id))
-    );
-
-    const validNodes = nodes.filter((node): node is SceneNode => node !== null);
-
-    const responses = await Promise.all(
-      validNodes.map(async (node) => {
-        const response = await node.exportAsync({
+    const results = await Promise.all(
+      nodeIds.map(async (id) => {
+        const node = await figma.getNodeByIdAsync(id);
+        if (!node) return null;
+        const response = await (node as SceneNode).exportAsync({
           format: "JSON_REST_V1",
         });
         return {
@@ -178,7 +174,7 @@ export async function getNodesInfo(nodeIds: string[]): Promise<NodeInfoResponse[
       })
     );
 
-    return responses;
+    return results.filter((r): r is NodeInfoResponse => r !== null);
   } catch (error) {
     const err = error as Error;
     throw new Error(`Error getting nodes info: ${err.message}`);

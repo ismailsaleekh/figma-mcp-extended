@@ -279,6 +279,7 @@ export async function setLayoutPositioning(params: SetLayoutPositioningParams) {
   const sceneNode = node as SceneNode & {
     layoutPositioning: "AUTO" | "ABSOLUTE";
     constraints: Constraints;
+    resize(width: number, height: number): void;
   };
 
   // Validate parent is an auto-layout frame
