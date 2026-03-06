@@ -371,12 +371,11 @@
   function getNodesInfo(nodeIds) {
     return __async(this, null, function* () {
       try {
-        const nodes = yield Promise.all(
-          nodeIds.map((id) => figma.getNodeByIdAsync(id))
-        );
-        const validNodes = nodes.filter((node) => node !== null);
-        const responses = yield Promise.all(
-          validNodes.map((node) => __async(this, null, function* () {
+        const results = yield Promise.all(
+          nodeIds.map((id) => __async(this, null, function* () {
+            const node = yield figma.getNodeByIdAsync(id);
+            if (!node)
+              return null;
             const response = yield node.exportAsync({
               format: "JSON_REST_V1"
             });
@@ -386,7 +385,7 @@
             };
           }))
         );
-        return responses;
+        return results.filter((r) => r !== null);
       } catch (error) {
         const err = error;
         throw new Error(`Error getting nodes info: ${err.message}`);
@@ -2620,6 +2619,7 @@
   function svgPathToVectorNetwork(pathData, windingRule = "EVENODD") {
     const commands = (0, import_svg_path_parser.makeAbsolute)((0, import_svg_path_parser.parseSVG)(pathData));
     const vertices = [];
+    const vertexMap = /* @__PURE__ */ new Map();
     const segments = [];
     const loops = [];
     let currentLoop = [];
@@ -2632,13 +2632,14 @@
     let lastControlY = 0;
     let lastCommand = "";
     function addVertex(x, y) {
-      const existing = vertices.findIndex(
-        (v) => Math.abs(v.x - x) < 1e-3 && Math.abs(v.y - y) < 1e-3
-      );
-      if (existing >= 0)
+      const key = `${Math.round(x * 1e3)},${Math.round(y * 1e3)}`;
+      const existing = vertexMap.get(key);
+      if (existing !== void 0)
         return existing;
+      const idx = vertices.length;
       vertices.push({ x, y });
-      return vertices.length - 1;
+      vertexMap.set(key, idx);
+      return idx;
     }
     function addSegment(startIdx, endIdx, tangentStart, tangentEnd) {
       const segmentIndex = segments.length;
@@ -2890,6 +2891,46 @@
   });
 
   // src/commands/creation.ts
+  function buildGradientPaint(gradientType, stops, angle) {
+    const radians = angle * Math.PI / 180;
+    const cos = Math.cos(radians);
+    const sin = Math.sin(radians);
+    return {
+      type: gradientType,
+      gradientTransform: [
+        [cos, sin, 0.5 - 0.5 * cos - 0.5 * sin],
+        [-sin, cos, 0.5 + 0.5 * sin - 0.5 * cos]
+      ],
+      gradientStops: stops.map((stop) => {
+        var _a;
+        return {
+          position: stop.position,
+          color: {
+            r: stop.color.r,
+            g: stop.color.g,
+            b: stop.color.b,
+            a: (_a = stop.color.a) != null ? _a : 1
+          }
+        };
+      })
+    };
+  }
+  function appendToParent(node, parentId) {
+    return __async(this, null, function* () {
+      if (parentId) {
+        const parentNode = yield figma.getNodeByIdAsync(parentId);
+        if (!parentNode) {
+          throw new Error(`Parent node not found with ID: ${parentId}`);
+        }
+        if (!("appendChild" in parentNode)) {
+          throw new Error(`Parent node does not support children: ${parentId}`);
+        }
+        parentNode.appendChild(node);
+      } else {
+        figma.currentPage.appendChild(node);
+      }
+    });
+  }
   function createRectangle(params) {
     return __async(this, null, function* () {
       const {
@@ -3546,6 +3587,411 @@
       };
     });
   }
+  function createFrameFull(params) {
+    return __async(this, null, function* () {
+      const {
+        x = 0,
+        y = 0,
+        width = 100,
+        height = 100,
+        name = "Frame",
+        parentId,
+        fillColor,
+        strokeColor,
+        strokeWeight,
+        clipsContent,
+        layoutMode = "NONE",
+        layoutWrap = "NO_WRAP",
+        paddingTop = 10,
+        paddingRight = 10,
+        paddingBottom = 10,
+        paddingLeft = 10,
+        primaryAxisAlignItems = "MIN",
+        counterAxisAlignItems = "MIN",
+        itemSpacing = 0,
+        counterAxisSpacing,
+        cornerRadius,
+        corners,
+        opacity,
+        effects,
+        layoutSizingHorizontal = "FIXED",
+        layoutSizingVertical = "FIXED",
+        positioning,
+        top,
+        left,
+        right,
+        bottom,
+        gradientType,
+        gradientStops,
+        gradientAngle = 0,
+        visible
+      } = params;
+      const frame = figma.createFrame();
+      frame.x = x;
+      frame.y = y;
+      frame.resize(width, height);
+      frame.name = name;
+      if (clipsContent !== void 0) {
+        frame.clipsContent = clipsContent;
+      }
+      if (layoutMode !== "NONE") {
+        frame.layoutMode = layoutMode;
+        frame.layoutWrap = layoutWrap;
+        frame.paddingTop = paddingTop;
+        frame.paddingRight = paddingRight;
+        frame.paddingBottom = paddingBottom;
+        frame.paddingLeft = paddingLeft;
+        frame.primaryAxisAlignItems = primaryAxisAlignItems;
+        frame.counterAxisAlignItems = counterAxisAlignItems;
+        frame.layoutSizingHorizontal = "FIXED";
+        frame.layoutSizingVertical = "FIXED";
+        frame.itemSpacing = itemSpacing;
+        if (counterAxisSpacing !== void 0 && layoutWrap === "WRAP") {
+          frame.counterAxisSpacing = counterAxisSpacing;
+        }
+      }
+      if (cornerRadius !== void 0) {
+        if (corners) {
+          if (corners[0])
+            frame.topLeftRadius = cornerRadius;
+          if (corners[1])
+            frame.topRightRadius = cornerRadius;
+          if (corners[2])
+            frame.bottomRightRadius = cornerRadius;
+          if (corners[3])
+            frame.bottomLeftRadius = cornerRadius;
+        } else {
+          frame.cornerRadius = cornerRadius;
+        }
+      }
+      if (fillColor === "__none__") {
+        frame.fills = [];
+      } else if (fillColor) {
+        frame.fills = [createSolidPaint(fillColor)];
+      }
+      if (strokeColor) {
+        frame.strokes = [createSolidPaint(strokeColor)];
+      }
+      if (strokeWeight !== void 0) {
+        frame.strokeWeight = strokeWeight;
+      }
+      if (opacity !== void 0) {
+        frame.opacity = opacity;
+      }
+      if (effects && Array.isArray(effects) && effects.length > 0) {
+        frame.effects = effects.map((effect) => {
+          var _a, _b, _c;
+          if (effect.type === "DROP_SHADOW" || effect.type === "INNER_SHADOW") {
+            return {
+              type: effect.type,
+              visible: effect.visible !== false,
+              radius: effect.radius,
+              color: effect.color ? { r: effect.color.r, g: effect.color.g, b: effect.color.b, a: (_a = effect.color.a) != null ? _a : 1 } : { r: 0, g: 0, b: 0, a: 0.25 },
+              offset: (_b = effect.offset) != null ? _b : { x: 0, y: 4 },
+              spread: (_c = effect.spread) != null ? _c : 0,
+              blendMode: "NORMAL"
+            };
+          } else {
+            return {
+              type: effect.type,
+              visible: effect.visible !== false,
+              radius: effect.radius
+            };
+          }
+        });
+      }
+      yield appendToParent(frame, parentId);
+      if (positioning === "ABSOLUTE") {
+        frame.layoutPositioning = "ABSOLUTE";
+        const hasOffsets = top !== void 0 || left !== void 0 || right !== void 0 || bottom !== void 0;
+        if (hasOffsets) {
+          const parent = frame.parent;
+          const parentWidth = parent.width;
+          const parentHeight = parent.height;
+          const nodeWidth = frame.width;
+          const nodeHeight = frame.height;
+          const hasBothLR = typeof left === "number" && typeof right === "number";
+          const hasBothTB = typeof top === "number" && typeof bottom === "number";
+          if (hasBothLR) {
+            frame.x = left;
+            const newWidth = parentWidth - left - right;
+            if (newWidth > 0)
+              frame.resize(newWidth, frame.height);
+          } else if (typeof left === "number") {
+            frame.x = left;
+          } else if (typeof right === "number") {
+            frame.x = parentWidth - nodeWidth - right;
+          }
+          if (hasBothTB) {
+            frame.y = top;
+            const newHeight = parentHeight - top - bottom;
+            if (newHeight > 0)
+              frame.resize(frame.width, newHeight);
+          } else if (typeof top === "number") {
+            frame.y = top;
+          } else if (typeof bottom === "number") {
+            frame.y = parentHeight - nodeHeight - bottom;
+          }
+          frame.constraints = {
+            horizontal: hasBothLR ? "STRETCH" : typeof right === "number" ? "MAX" : "MIN",
+            vertical: hasBothTB ? "STRETCH" : typeof bottom === "number" ? "MAX" : "MIN"
+          };
+        }
+      }
+      if (layoutMode !== "NONE") {
+        if (layoutSizingHorizontal !== "FIXED") {
+          frame.layoutSizingHorizontal = layoutSizingHorizontal;
+        }
+        if (layoutSizingVertical !== "FIXED") {
+          frame.layoutSizingVertical = layoutSizingVertical;
+        }
+      }
+      if (gradientType && gradientStops && gradientStops.length >= 2) {
+        frame.fills = [buildGradientPaint(gradientType, gradientStops, gradientAngle)];
+      }
+      if (visible === false) {
+        frame.visible = false;
+      }
+      return { id: frame.id };
+    });
+  }
+  function createTextFull(params) {
+    return __async(this, null, function* () {
+      const {
+        x = 0,
+        y = 0,
+        width,
+        text = "Text",
+        fontSize = 14,
+        fontWeight = 400,
+        fontColor = { r: 0, g: 0, b: 0, a: 1 },
+        textAlignHorizontal = "LEFT",
+        name = "",
+        parentId,
+        opacity,
+        lineHeight,
+        lineHeightUnit = "PIXELS",
+        letterSpacing,
+        letterSpacingUnit = "PIXELS",
+        maxLines,
+        layoutSizingHorizontal,
+        layoutSizingVertical,
+        gradientType,
+        gradientStops,
+        gradientAngle = 0,
+        visible
+      } = params;
+      const textNode = figma.createText();
+      textNode.x = x;
+      textNode.y = y;
+      textNode.name = name || text;
+      try {
+        yield figma.loadFontAsync({
+          family: "Inter",
+          style: getFontStyle(fontWeight)
+        });
+        textNode.fontName = { family: "Inter", style: getFontStyle(fontWeight) };
+        textNode.fontSize = fontSize;
+      } catch (error) {
+        console.error("Error setting font size", error);
+      }
+      yield setCharacters(textNode, text);
+      textNode.fills = [createSolidPaint(fontColor)];
+      if (width !== void 0) {
+        textNode.textAutoResize = "HEIGHT";
+        textNode.resize(width, textNode.height);
+      }
+      textNode.textAlignHorizontal = textAlignHorizontal;
+      if (lineHeight !== void 0) {
+        if (lineHeight === "AUTO") {
+          textNode.lineHeight = { unit: "AUTO" };
+        } else {
+          textNode.lineHeight = { value: lineHeight, unit: lineHeightUnit };
+        }
+      }
+      if (letterSpacing !== void 0) {
+        textNode.letterSpacing = { value: letterSpacing, unit: letterSpacingUnit };
+      }
+      if (maxLines !== void 0) {
+        textNode.textTruncation = "ENDING";
+        textNode.maxLines = maxLines;
+      }
+      if (opacity !== void 0) {
+        textNode.opacity = opacity;
+      }
+      yield appendToParent(textNode, parentId);
+      if (layoutSizingHorizontal && layoutSizingHorizontal !== "FIXED") {
+        textNode.layoutSizingHorizontal = layoutSizingHorizontal;
+      }
+      if (layoutSizingVertical && layoutSizingVertical !== "FIXED") {
+        textNode.layoutSizingVertical = layoutSizingVertical;
+      }
+      if (gradientType && gradientStops && gradientStops.length >= 2) {
+        textNode.fills = [buildGradientPaint(gradientType, gradientStops, gradientAngle)];
+      }
+      if (visible === false) {
+        textNode.visible = false;
+      }
+      return { id: textNode.id };
+    });
+  }
+  function createSvgFull(params) {
+    return __async(this, null, function* () {
+      var _a;
+      const {
+        svg,
+        x = 0,
+        y = 0,
+        width,
+        height,
+        name = "SVG",
+        parentId,
+        fillColor,
+        strokeColor,
+        strokeWeight,
+        windingRule = "EVENODD",
+        opacity,
+        layoutSizingHorizontal,
+        layoutSizingVertical,
+        visible
+      } = params;
+      if (!svg || typeof svg !== "string") {
+        throw new Error("svg parameter is required and must be a string");
+      }
+      const isSvgContent = svg.trim().startsWith("<");
+      let pathsData;
+      let originalSize = { width: 24, height: 24 };
+      let detectedStyle = "stroke";
+      let detectedStrokeWeight = null;
+      if (isSvgContent) {
+        pathsData = parseSvgPaths(svg);
+        const viewBox = parseSvgViewBox(svg);
+        if (viewBox)
+          originalSize = viewBox;
+        detectedStyle = detectSvgStyle(svg);
+        detectedStrokeWeight = extractStrokeWidth(svg);
+      } else {
+        pathsData = [svg];
+      }
+      if (pathsData.length === 0) {
+        throw new Error("No valid path data found in SVG");
+      }
+      const vector = figma.createVector();
+      vector.name = name;
+      const allVertices = [];
+      const allSegments = [];
+      const allLoops = [];
+      for (const pathData of pathsData) {
+        const network = svgPathToVectorNetwork(pathData, windingRule);
+        const vertexOffset = allVertices.length;
+        const segmentOffset = allSegments.length;
+        allVertices.push(...network.vertices);
+        for (const seg of network.segments) {
+          allSegments.push({
+            start: seg.start + vertexOffset,
+            end: seg.end + vertexOffset,
+            tangentStart: seg.tangentStart,
+            tangentEnd: seg.tangentEnd
+          });
+        }
+        for (const region of network.regions) {
+          for (const loop of region.loops) {
+            allLoops.push(loop.map((idx) => idx + segmentOffset));
+          }
+        }
+      }
+      yield vector.setVectorNetworkAsync({
+        vertices: allVertices,
+        segments: allSegments,
+        regions: allLoops.length > 0 ? [{ windingRule, loops: allLoops }] : void 0
+      });
+      const finalStrokeWeight = (_a = strokeWeight != null ? strokeWeight : detectedStrokeWeight) != null ? _a : 1.5;
+      if (detectedStyle === "fill" || detectedStyle === "both") {
+        if (fillColor) {
+          vector.fills = [createSolidPaint(fillColor)];
+        } else if (!strokeColor && detectedStyle === "fill") {
+          vector.fills = [createSolidPaint({ r: 0, g: 0, b: 0, a: 1 })];
+        }
+      }
+      if (detectedStyle === "stroke" || detectedStyle === "both" || strokeColor) {
+        if (strokeColor) {
+          vector.strokes = [createSolidPaint(strokeColor)];
+        } else if (detectedStyle === "stroke") {
+          vector.strokes = [createSolidPaint({ r: 0, g: 0, b: 0, a: 1 })];
+        }
+        vector.strokeWeight = finalStrokeWeight;
+        vector.strokeCap = "ROUND";
+        vector.strokeJoin = "ROUND";
+        if (detectedStyle === "stroke" && !fillColor) {
+          vector.fills = [];
+        }
+      }
+      const targetWidth = width != null ? width : originalSize.width;
+      const targetHeight = height != null ? height : originalSize.height;
+      if (vector.width > 0 && vector.height > 0) {
+        vector.resize(targetWidth, targetHeight);
+      }
+      vector.x = x;
+      vector.y = y;
+      if (opacity !== void 0) {
+        vector.opacity = opacity;
+      }
+      yield appendToParent(vector, parentId);
+      if (layoutSizingHorizontal && layoutSizingHorizontal !== "FIXED") {
+        vector.layoutSizingHorizontal = layoutSizingHorizontal;
+      }
+      if (layoutSizingVertical && layoutSizingVertical !== "FIXED") {
+        vector.layoutSizingVertical = layoutSizingVertical;
+      }
+      if (visible === false) {
+        vector.visible = false;
+      }
+      return { id: vector.id };
+    });
+  }
+  function createRectangleFull(params) {
+    return __async(this, null, function* () {
+      const {
+        x = 0,
+        y = 0,
+        width = 100,
+        height = 100,
+        name = "Rectangle",
+        parentId,
+        fillColor,
+        cornerRadius,
+        opacity,
+        layoutSizingHorizontal,
+        layoutSizingVertical,
+        visible
+      } = params;
+      const rect = figma.createRectangle();
+      rect.x = x;
+      rect.y = y;
+      rect.resize(width, height);
+      rect.name = name;
+      if (fillColor) {
+        rect.fills = [createSolidPaint(fillColor)];
+      }
+      if (cornerRadius !== void 0 && cornerRadius > 0) {
+        rect.cornerRadius = cornerRadius;
+      }
+      if (opacity !== void 0) {
+        rect.opacity = opacity;
+      }
+      yield appendToParent(rect, parentId);
+      if (layoutSizingHorizontal && layoutSizingHorizontal !== "FIXED") {
+        rect.layoutSizingHorizontal = layoutSizingHorizontal;
+      }
+      if (layoutSizingVertical && layoutSizingVertical !== "FIXED") {
+        rect.layoutSizingVertical = layoutSizingVertical;
+      }
+      if (visible === false) {
+        rect.visible = false;
+      }
+      return { id: rect.id };
+    });
+  }
   var init_creation = __esm({
     "src/commands/creation.ts"() {
       "use strict";
@@ -3559,9 +4005,6 @@
   function setFillColor(params) {
     return __async(this, null, function* () {
       const { nodeId, color: rgbColor } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
       const node = yield figma.getNodeByIdAsync(nodeId);
       if (!node) {
         throw new Error(`Node not found with ID: ${nodeId}`);
@@ -3589,9 +4032,6 @@
   function setStrokeColor(params) {
     return __async(this, null, function* () {
       const { nodeId, color, weight = 1 } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
       const node = yield figma.getNodeByIdAsync(nodeId);
       if (!node) {
         throw new Error(`Node not found with ID: ${nodeId}`);
@@ -3629,12 +4069,6 @@
   function setCornerRadius(params) {
     return __async(this, null, function* () {
       const { nodeId, radius, corners } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
-      if (radius === void 0) {
-        throw new Error("Missing radius parameter");
-      }
       const node = yield figma.getNodeByIdAsync(nodeId);
       if (!node) {
         throw new Error(`Node not found with ID: ${nodeId}`);
@@ -3673,10 +4107,7 @@
   function setOpacity(params) {
     return __async(this, null, function* () {
       const { nodeId, opacity } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
-      if (opacity === void 0 || opacity < 0 || opacity > 1) {
+      if (opacity < 0 || opacity > 1) {
         throw new Error("opacity must be a number between 0 and 1");
       }
       const node = yield figma.getNodeByIdAsync(nodeId);
@@ -3698,12 +4129,6 @@
   function setEffects(params) {
     return __async(this, null, function* () {
       const { nodeId, effects } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
-      if (!effects || !Array.isArray(effects)) {
-        throw new Error("effects must be an array");
-      }
       const node = yield figma.getNodeByIdAsync(nodeId);
       if (!node) {
         throw new Error(`Node not found with ID: ${nodeId}`);
@@ -3745,10 +4170,7 @@
   function setGradientFill(params) {
     return __async(this, null, function* () {
       const { nodeId, gradientType, stops, angle = 0 } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
-      if (!stops || !Array.isArray(stops) || stops.length < 2) {
+      if (stops.length < 2) {
         throw new Error("stops must be an array with at least 2 color stops");
       }
       const node = yield figma.getNodeByIdAsync(nodeId);
@@ -3792,12 +4214,6 @@
   function setBlendMode(params) {
     return __async(this, null, function* () {
       const { nodeId, blendMode } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
-      if (!blendMode) {
-        throw new Error("Missing blendMode parameter");
-      }
       const node = yield figma.getNodeByIdAsync(nodeId);
       if (!node) {
         throw new Error(`Node not found with ID: ${nodeId}`);
@@ -3817,9 +4233,6 @@
   function setStrokeStyle(params) {
     return __async(this, null, function* () {
       const { nodeId, strokeAlign, strokeCap, strokeJoin, dashPattern } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
       const node = yield figma.getNodeByIdAsync(nodeId);
       if (!node) {
         throw new Error(`Node not found with ID: ${nodeId}`);
@@ -4176,7 +4589,7 @@
   });
 
   // src/commands/text.ts
-  function processTextNode(node, parentPath, depth) {
+  function processTextNode(node, parentPath, depth, highlight = true) {
     return __async(this, null, function* () {
       if (node.type !== "TEXT")
         return null;
@@ -4204,7 +4617,9 @@
           path: parentPath.join(" > "),
           depth
         };
-        yield highlightNodeWithFill(node, 100);
+        if (highlight) {
+          yield highlightNodeWithFill(node, 100);
+        }
         return safeTextNode;
       } catch (nodeErr) {
         console.error("Error processing text node:", nodeErr);
@@ -4213,18 +4628,18 @@
     });
   }
   function findTextNodes(_0) {
-    return __async(this, arguments, function* (node, parentPath = [], depth = 0, textNodes = []) {
+    return __async(this, arguments, function* (node, parentPath = [], depth = 0, textNodes = [], highlight = true) {
       if (node.visible === false)
         return;
       const nodePath = [...parentPath, node.name || `Unnamed ${node.type}`];
       if (node.type === "TEXT") {
-        const result = yield processTextNode(node, nodePath, depth);
+        const result = yield processTextNode(node, nodePath, depth, highlight);
         if (result)
           textNodes.push(result);
       }
       if ("children" in node) {
         for (const child of node.children) {
-          yield findTextNodes(child, nodePath, depth + 1, textNodes);
+          yield findTextNodes(child, nodePath, depth + 1, textNodes, highlight);
         }
       }
     });
@@ -4235,6 +4650,7 @@
         nodeId,
         useChunking = true,
         chunkSize = 10,
+        highlight = true,
         commandId = generateCommandId()
       } = params;
       const node = yield figma.getNodeByIdAsync(nodeId);
@@ -4244,7 +4660,7 @@
       if (!useChunking) {
         const textNodes = [];
         sendProgressUpdate(commandId, "scan_text_nodes", "started", 0, 1, 0, "Starting scan");
-        yield findTextNodes(node, [], 0, textNodes);
+        yield findTextNodes(node, [], 0, textNodes, highlight);
         sendProgressUpdate(commandId, "scan_text_nodes", "completed", 100, textNodes.length, textNodes.length, "Scan complete");
         return { success: true, count: textNodes.length, textNodes, commandId };
       }
@@ -4260,11 +4676,10 @@
         const chunkNodes = nodesToProcess.slice(i, chunkEnd);
         for (const nodeInfo of chunkNodes) {
           if (nodeInfo.node.type === "TEXT") {
-            const result = yield processTextNode(nodeInfo.node, nodeInfo.parentPath, nodeInfo.depth);
+            const result = yield processTextNode(nodeInfo.node, nodeInfo.parentPath, nodeInfo.depth, highlight);
             if (result)
               allTextNodes.push(result);
           }
-          yield delay2(5);
         }
         processedNodes += chunkNodes.length;
         sendProgressUpdate(commandId, "scan_text_nodes", "in_progress", Math.round(processedNodes / totalNodes * 100), totalNodes, processedNodes, `Processed ${processedNodes}/${totalNodes}`);
@@ -4283,10 +4698,6 @@
   function setTextContent(params) {
     return __async(this, null, function* () {
       const { nodeId, text } = params;
-      if (!nodeId)
-        throw new Error("Missing nodeId parameter");
-      if (text === void 0)
-        throw new Error("Missing text parameter");
       const node = yield figma.getNodeByIdAsync(nodeId);
       if (!node)
         throw new Error(`Node not found with ID: ${nodeId}`);
@@ -4306,9 +4717,6 @@
   function setMultipleTextContents(params) {
     return __async(this, null, function* () {
       const { nodeId, text, commandId = generateCommandId() } = params;
-      if (!nodeId || !text || !Array.isArray(text)) {
-        throw new Error("Missing required parameters");
-      }
       sendProgressUpdate(commandId, "set_multiple_text_contents", "started", 0, text.length, 0, "Starting text replacement");
       const results = [];
       let successCount = 0;
@@ -4342,7 +4750,7 @@
         });
         sendProgressUpdate(commandId, "set_multiple_text_contents", "in_progress", Math.round((i + chunk.length) / text.length * 100), text.length, successCount + failureCount, `Processed ${successCount + failureCount}/${text.length}`);
         if (i + CHUNK_SIZE < text.length)
-          yield delay2(1e3);
+          yield delay2(50);
       }
       sendProgressUpdate(commandId, "set_multiple_text_contents", "completed", 100, text.length, successCount + failureCount, `Complete: ${successCount} successful, ${failureCount} failed`);
       return {
@@ -4359,12 +4767,6 @@
   function setFontFamily(params) {
     return __async(this, null, function* () {
       const { nodeId, fontFamily, fontStyle = "Regular" } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
-      if (!fontFamily) {
-        throw new Error("Missing fontFamily parameter");
-      }
       const node = yield figma.getNodeByIdAsync(nodeId);
       if (!node) {
         throw new Error(`Node not found with ID: ${nodeId}`);
@@ -4391,10 +4793,7 @@
   function setFontSize(params) {
     return __async(this, null, function* () {
       const { nodeId, fontSize } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
-      if (fontSize === void 0 || fontSize <= 0) {
+      if (fontSize <= 0) {
         throw new Error("fontSize must be a positive number");
       }
       const node = yield figma.getNodeByIdAsync(nodeId);
@@ -4423,10 +4822,7 @@
   function setFontWeight(params) {
     return __async(this, null, function* () {
       const { nodeId, fontWeight } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
-      if (fontWeight === void 0 || fontWeight < 100 || fontWeight > 900) {
+      if (fontWeight < 100 || fontWeight > 900) {
         throw new Error("fontWeight must be between 100 and 900");
       }
       const node = yield figma.getNodeByIdAsync(nodeId);
@@ -4461,9 +4857,6 @@
   function setTextAlignment(params) {
     return __async(this, null, function* () {
       const { nodeId, horizontalAlign, verticalAlign } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
       const node = yield figma.getNodeByIdAsync(nodeId);
       if (!node) {
         throw new Error(`Node not found with ID: ${nodeId}`);
@@ -4493,9 +4886,6 @@
   function setLineHeight(params) {
     return __async(this, null, function* () {
       const { nodeId, lineHeight, unit = "PIXELS" } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
       if (lineHeight === void 0) {
         throw new Error("Missing lineHeight parameter");
       }
@@ -4526,12 +4916,6 @@
   function setLetterSpacing(params) {
     return __async(this, null, function* () {
       const { nodeId, letterSpacing, unit = "PIXELS" } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
-      if (letterSpacing === void 0) {
-        throw new Error("Missing letterSpacing parameter");
-      }
       const node = yield figma.getNodeByIdAsync(nodeId);
       if (!node) {
         throw new Error(`Node not found with ID: ${nodeId}`);
@@ -4555,10 +4939,7 @@
   function setTextTruncation(params) {
     return __async(this, null, function* () {
       const { nodeId, maxLines } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
-      if (maxLines === void 0 || maxLines < 1) {
+      if (maxLines < 1) {
         throw new Error("maxLines must be a positive integer");
       }
       const node = yield figma.getNodeByIdAsync(nodeId);
@@ -4694,6 +5075,83 @@
       };
     });
   }
+  function createImageFull(params) {
+    return __async(this, null, function* () {
+      const {
+        x = 0,
+        y = 0,
+        width = 100,
+        height = 100,
+        name = "Image",
+        parentId,
+        imageUrl,
+        imageBase64,
+        scaleMode = "FILL",
+        cornerRadius = 0,
+        strokeColor,
+        strokeWeight,
+        opacity,
+        layoutSizingHorizontal,
+        layoutSizingVertical,
+        visible
+      } = params;
+      if (!imageUrl && !imageBase64)
+        throw new Error("Either imageUrl or imageBase64 must be provided");
+      const rect = figma.createRectangle();
+      rect.x = x;
+      rect.y = y;
+      rect.resize(width, height);
+      rect.name = name;
+      if (cornerRadius > 0)
+        rect.cornerRadius = cornerRadius;
+      let image;
+      if (imageUrl) {
+        image = yield figma.createImageAsync(imageUrl);
+      } else if (imageBase64) {
+        const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+        const imageBytes = figma.base64Decode(base64Data);
+        image = figma.createImage(imageBytes);
+      } else {
+        throw new Error("No image data provided");
+      }
+      rect.fills = [
+        {
+          type: "IMAGE",
+          scaleMode,
+          imageHash: image.hash
+        }
+      ];
+      if (strokeColor) {
+        rect.strokes = [createSolidPaint(strokeColor)];
+        if (strokeWeight !== void 0) {
+          rect.strokeWeight = strokeWeight;
+        }
+      }
+      if (opacity !== void 0) {
+        rect.opacity = opacity;
+      }
+      if (parentId) {
+        const parentNode = yield figma.getNodeByIdAsync(parentId);
+        if (!parentNode)
+          throw new Error(`Parent node not found with ID: ${parentId}`);
+        if (!("appendChild" in parentNode))
+          throw new Error(`Parent node does not support children: ${parentId}`);
+        parentNode.appendChild(rect);
+      } else {
+        figma.currentPage.appendChild(rect);
+      }
+      if (layoutSizingHorizontal && layoutSizingHorizontal !== "FIXED") {
+        rect.layoutSizingHorizontal = layoutSizingHorizontal;
+      }
+      if (layoutSizingVertical && layoutSizingVertical !== "FIXED") {
+        rect.layoutSizingVertical = layoutSizingVertical;
+      }
+      if (visible === false) {
+        rect.visible = false;
+      }
+      return { id: rect.id };
+    });
+  }
   function exportNodeAsImage(params) {
     return __async(this, null, function* () {
       const { nodeId, scale = 1 } = params;
@@ -4723,6 +5181,7 @@
   var init_images = __esm({
     "src/commands/images.ts"() {
       "use strict";
+      init_colors();
       init_nodes();
     }
   });
@@ -5667,9 +6126,14 @@
         completeData.document.children.push(pageData);
         sendProgressUpdate(commandId, "get_complete_file_data", "in_progress", Math.round((i + 1) / pages.length * 80), pages.length, i + 1, `Processed page: ${page.name}`);
       }
-      completeData.styles = yield getDocumentStyles();
-      completeData.components = yield getDocumentComponents();
-      completeData.variables = yield getDocumentVariables();
+      const [styles, components, variables] = yield Promise.all([
+        getDocumentStyles(),
+        getDocumentComponents(),
+        getDocumentVariables()
+      ]);
+      completeData.styles = styles;
+      completeData.components = components;
+      completeData.variables = variables;
       sendProgressUpdate(commandId, "get_complete_file_data", "completed", 100, 1, 1, "Extraction complete");
       return completeData;
     });
@@ -6420,17 +6884,20 @@
   function groupNodes(params) {
     return __async(this, null, function* () {
       const { nodeIds, name = "Group" } = params;
-      if (!nodeIds || !Array.isArray(nodeIds) || nodeIds.length < 1) {
+      if (nodeIds.length < 1) {
         throw new Error("nodeIds must be an array with at least 1 node ID");
       }
+      const resolved = yield Promise.all(
+        nodeIds.map((nodeId) => figma.getNodeByIdAsync(nodeId))
+      );
       const nodes = [];
-      for (const nodeId of nodeIds) {
-        const node = yield figma.getNodeByIdAsync(nodeId);
+      for (let i = 0; i < resolved.length; i++) {
+        const node = resolved[i];
         if (!node) {
-          throw new Error(`Node not found with ID: ${nodeId}`);
+          throw new Error(`Node not found with ID: ${nodeIds[i]}`);
         }
         if (!("parent" in node)) {
-          throw new Error(`Node cannot be grouped: ${nodeId}`);
+          throw new Error(`Node cannot be grouped: ${nodeIds[i]}`);
         }
         nodes.push(node);
       }
@@ -6457,9 +6924,6 @@
   function ungroupNodes(params) {
     return __async(this, null, function* () {
       const { nodeId } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
       const node = yield figma.getNodeByIdAsync(nodeId);
       if (!node) {
         throw new Error(`Node not found with ID: ${nodeId}`);
@@ -6487,12 +6951,6 @@
   function setRotation(params) {
     return __async(this, null, function* () {
       const { nodeId, rotation } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
-      if (rotation === void 0) {
-        throw new Error("Missing rotation parameter");
-      }
       const node = yield figma.getNodeByIdAsync(nodeId);
       if (!node) {
         throw new Error(`Node not found with ID: ${nodeId}`);
@@ -6512,12 +6970,6 @@
   function setZIndex(params) {
     return __async(this, null, function* () {
       const { nodeId, position } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
-      if (position === void 0) {
-        throw new Error("Missing position parameter");
-      }
       const node = yield figma.getNodeByIdAsync(nodeId);
       if (!node) {
         throw new Error(`Node not found with ID: ${nodeId}`);
@@ -6559,12 +7011,6 @@
   function renameNode(params) {
     return __async(this, null, function* () {
       const { nodeId, name } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
-      if (name === void 0) {
-        throw new Error("Missing name parameter");
-      }
       const node = yield figma.getNodeByIdAsync(nodeId);
       if (!node) {
         throw new Error(`Node not found with ID: ${nodeId}`);
@@ -6581,12 +7027,6 @@
   function setVisibility(params) {
     return __async(this, null, function* () {
       const { nodeId, visible } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
-      if (visible === void 0) {
-        throw new Error("Missing visible parameter");
-      }
       const node = yield figma.getNodeByIdAsync(nodeId);
       if (!node) {
         throw new Error(`Node not found with ID: ${nodeId}`);
@@ -6606,9 +7046,6 @@
   function setConstraints(params) {
     return __async(this, null, function* () {
       const { nodeId, horizontal, vertical } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
       const node = yield figma.getNodeByIdAsync(nodeId);
       if (!node) {
         throw new Error(`Node not found with ID: ${nodeId}`);
@@ -6632,12 +7069,6 @@
   function lockNode(params) {
     return __async(this, null, function* () {
       const { nodeId, locked } = params;
-      if (!nodeId) {
-        throw new Error("Missing nodeId parameter");
-      }
-      if (locked === void 0) {
-        throw new Error("Missing locked parameter");
-      }
       const node = yield figma.getNodeByIdAsync(nodeId);
       if (!node) {
         throw new Error(`Node not found with ID: ${nodeId}`);
@@ -6814,6 +7245,21 @@
       function isCreateSvgParams(params) {
         return hasString(params, "svg");
       }
+      function isCreateFrameFullParams(params) {
+        return isRecord(params);
+      }
+      function isCreateTextFullParams(params) {
+        return isRecord(params);
+      }
+      function isCreateSvgFullParams(params) {
+        return hasString(params, "svg");
+      }
+      function isCreateRectangleFullParams(params) {
+        return isRecord(params);
+      }
+      function isCreateImageFullParams(params) {
+        return isRecord(params);
+      }
       function isSetCurrentPageParams(params) {
         return hasString(params, "pageId");
       }
@@ -6948,6 +7394,31 @@
               return yield createFrame(params);
             case "create_text":
               return yield createText(params);
+            case "create_frame_full":
+              if (!params || !isCreateFrameFullParams(params)) {
+                throw new Error("Invalid parameters for create_frame_full");
+              }
+              return yield createFrameFull(params);
+            case "create_text_full":
+              if (!params || !isCreateTextFullParams(params)) {
+                throw new Error("Invalid parameters for create_text_full");
+              }
+              return yield createTextFull(params);
+            case "create_svg_full":
+              if (!params || !isCreateSvgFullParams(params)) {
+                throw new Error("Missing required parameter: svg");
+              }
+              return yield createSvgFull(params);
+            case "create_rectangle_full":
+              if (!params || !isCreateRectangleFullParams(params)) {
+                throw new Error("Invalid parameters for create_rectangle_full");
+              }
+              return yield createRectangleFull(params);
+            case "create_image_full":
+              if (!params || !isCreateImageFullParams(params)) {
+                throw new Error("Invalid parameters for create_image_full");
+              }
+              return yield createImageFull(params);
             case "move_node":
               if (!params || !isMoveNodeParams(params)) {
                 throw new Error("Missing required parameters: nodeId, x, y");

@@ -326,8 +326,6 @@
           state.socket.onmessage = (event) => {
             try {
               const data = JSON.parse(event.data);
-              console.log("Received message:", data);
-
               if (data.type === "system") {
                 // Successfully joined channel
                 if (data.message && data.message.result) {
@@ -395,7 +393,6 @@
       // Handle messages from the WebSocket
       async function handleSocketMessage(payload) {
         const data = payload.message;
-        console.log("handleSocketMessage", data);
 
         // If it's a response to a previous request
         if (data.id && state.pendingRequests.has(data.id)) {
@@ -632,8 +629,6 @@
       window.onmessage = (event) => {
         const message = event.data.pluginMessage;
         if (!message) return;
-
-        console.log("Received message from plugin:", message);
 
         switch (message.type) {
           case "connection-status":
