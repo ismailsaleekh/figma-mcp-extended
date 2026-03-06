@@ -15,6 +15,11 @@ import type {
   CreatePolygonParams,
   CreateVectorParams,
   CreateSvgParams,
+  CreateFrameFullParams,
+  CreateTextFullParams,
+  CreateSvgFullParams,
+  CreateRectangleFullParams,
+  CreateImageFullParams,
   SetFillColorParams,
   SetStrokeColorParams,
   SetCornerRadiusParams,
@@ -286,6 +291,27 @@ function isCreateSvgParams(params: Record<string, unknown>): params is CreateSvg
   return hasString(params, "svg");
 }
 
+// Composite creation params
+function isCreateFrameFullParams(params: Record<string, unknown>): params is CreateFrameFullParams {
+  return isRecord(params); // All params are optional
+}
+
+function isCreateTextFullParams(params: Record<string, unknown>): params is CreateTextFullParams {
+  return isRecord(params); // All params are optional
+}
+
+function isCreateSvgFullParams(params: Record<string, unknown>): params is CreateSvgFullParams {
+  return hasString(params, "svg");
+}
+
+function isCreateRectangleFullParams(params: Record<string, unknown>): params is CreateRectangleFullParams {
+  return isRecord(params); // All params are optional
+}
+
+function isCreateImageFullParams(params: Record<string, unknown>): params is CreateImageFullParams {
+  return isRecord(params); // Requires imageUrl or imageBase64, validated in function
+}
+
 // Document params
 function isSetCurrentPageParams(params: Record<string, unknown>): params is SetCurrentPageParams {
   return hasString(params, "pageId");
@@ -470,6 +496,34 @@ async function handleCommand(
       return await creationCommands.createFrame(params as CreateFrameParams | undefined);
     case "create_text":
       return await creationCommands.createText(params as CreateTextParams | undefined);
+
+    // Composite creation commands
+    case "create_frame_full":
+      if (!params || !isCreateFrameFullParams(params)) {
+        throw new Error("Invalid parameters for create_frame_full");
+      }
+      return await creationCommands.createFrameFull(params);
+    case "create_text_full":
+      if (!params || !isCreateTextFullParams(params)) {
+        throw new Error("Invalid parameters for create_text_full");
+      }
+      return await creationCommands.createTextFull(params);
+    case "create_svg_full":
+      if (!params || !isCreateSvgFullParams(params)) {
+        throw new Error("Missing required parameter: svg");
+      }
+      return await creationCommands.createSvgFull(params);
+    case "create_rectangle_full":
+      if (!params || !isCreateRectangleFullParams(params)) {
+        throw new Error("Invalid parameters for create_rectangle_full");
+      }
+      return await creationCommands.createRectangleFull(params);
+    case "create_image_full":
+      if (!params || !isCreateImageFullParams(params)) {
+        throw new Error("Invalid parameters for create_image_full");
+      }
+      return await imageCommands.createImageFull(params);
+
     case "move_node":
       if (!params || !isMoveNodeParams(params)) {
         throw new Error("Missing required parameters: nodeId, x, y");

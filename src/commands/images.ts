@@ -1,6 +1,7 @@
 // src/commands/images.ts
 
-import type { SetImageFillParams, CreateImageRectangleParams, ExportNodeAsImageParams } from "../types";
+import type { SetImageFillParams, CreateImageRectangleParams, CreateImageFullParams, ExportNodeAsImageParams } from "../types";
+import { createSolidPaint } from "../helpers/colors";
 import { customBase64Encode } from "../helpers/nodes";
 
 export async function setImageFill(params: SetImageFillParams) {
@@ -104,6 +105,100 @@ export async function createImageRectangle(params: CreateImageRectangleParams) {
     imageHash: image.hash,
     parentId: rect.parent?.id,
   };
+}
+
+/**
+ * Create an image rectangle with all properties in a single command.
+ * Replaces: create_image_rectangle + set_stroke_color + set_opacity
+ *           + set_layout_sizing + set_visibility
+ */
+export async function createImageFull(
+  params: CreateImageFullParams
+): Promise<{ id: string }> {
+  const {
+    x = 0,
+    y = 0,
+    width = 100,
+    height = 100,
+    name = "Image",
+    parentId,
+    imageUrl,
+    imageBase64,
+    scaleMode = "FILL",
+    cornerRadius = 0,
+    strokeColor,
+    strokeWeight,
+    opacity,
+    layoutSizingHorizontal,
+    layoutSizingVertical,
+    visible,
+  } = params;
+
+  if (!imageUrl && !imageBase64) throw new Error("Either imageUrl or imageBase64 must be provided");
+
+  const rect = figma.createRectangle();
+  rect.x = x;
+  rect.y = y;
+  rect.resize(width, height);
+  rect.name = name;
+
+  if (cornerRadius > 0) rect.cornerRadius = cornerRadius;
+
+  let image: Image;
+  if (imageUrl) {
+    image = await figma.createImageAsync(imageUrl);
+  } else if (imageBase64) {
+    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+    const imageBytes = figma.base64Decode(base64Data);
+    image = figma.createImage(imageBytes);
+  } else {
+    throw new Error("No image data provided");
+  }
+
+  rect.fills = [
+    {
+      type: "IMAGE",
+      scaleMode: scaleMode as "FILL" | "FIT" | "CROP" | "TILE",
+      imageHash: image.hash,
+    },
+  ];
+
+  // Stroke (create_image_rectangle doesn't support stroke at create-time)
+  if (strokeColor) {
+    rect.strokes = [createSolidPaint(strokeColor)];
+    if (strokeWeight !== undefined) {
+      rect.strokeWeight = strokeWeight;
+    }
+  }
+
+  if (opacity !== undefined) {
+    rect.opacity = opacity;
+  }
+
+  // Append to parent
+  if (parentId) {
+    const parentNode = await figma.getNodeByIdAsync(parentId);
+    if (!parentNode) throw new Error(`Parent node not found with ID: ${parentId}`);
+    if (!("appendChild" in parentNode)) throw new Error(`Parent node does not support children: ${parentId}`);
+    (parentNode as FrameNode).appendChild(rect);
+  } else {
+    figma.currentPage.appendChild(rect);
+  }
+
+  // Layout sizing (after appending)
+  if (layoutSizingHorizontal && layoutSizingHorizontal !== "FIXED") {
+    rect.layoutSizingHorizontal = layoutSizingHorizontal;
+  }
+  if (layoutSizingVertical && layoutSizingVertical !== "FIXED") {
+    rect.layoutSizingVertical = layoutSizingVertical;
+  }
+
+  // Visibility — must be last
+  if (visible === false) {
+    rect.visible = false;
+  }
+
+  return { id: rect.id };
 }
 
 export async function exportNodeAsImage(params: ExportNodeAsImageParams) {

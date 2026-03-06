@@ -13,6 +13,10 @@ import type {
   CreateRectangleParams,
   CreateFrameParams,
   CreateTextParams,
+  CreateFrameFullParams,
+  CreateTextFullParams,
+  CreateSvgFullParams,
+  CreateRectangleFullParams,
   MoveNodeParams,
   ResizeNodeParams,
   DeleteNodeParams,
@@ -23,6 +27,7 @@ import type {
   CreateVectorParams,
   CreateSvgParams,
   EffectConfig,
+  GradientStop,
 } from "../types";
 
 interface RectangleResult {
@@ -100,6 +105,47 @@ interface CloneResult {
 }
 
 type ChildrenMixin = { appendChild(child: SceneNode): void };
+
+function buildGradientPaint(
+  gradientType: string,
+  stops: GradientStop[],
+  angle: number
+): GradientPaint {
+  const radians = (angle * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  return {
+    type: gradientType as GradientPaint["type"],
+    gradientTransform: [
+      [cos, sin, 0.5 - 0.5 * cos - 0.5 * sin],
+      [-sin, cos, 0.5 + 0.5 * sin - 0.5 * cos],
+    ],
+    gradientStops: stops.map((stop) => ({
+      position: stop.position,
+      color: {
+        r: stop.color.r,
+        g: stop.color.g,
+        b: stop.color.b,
+        a: stop.color.a ?? 1,
+      },
+    })),
+  };
+}
+
+async function appendToParent(node: SceneNode, parentId?: string): Promise<void> {
+  if (parentId) {
+    const parentNode = await figma.getNodeByIdAsync(parentId);
+    if (!parentNode) {
+      throw new Error(`Parent node not found with ID: ${parentId}`);
+    }
+    if (!("appendChild" in parentNode)) {
+      throw new Error(`Parent node does not support children: ${parentId}`);
+    }
+    (parentNode as ChildrenMixin).appendChild(node);
+  } else {
+    figma.currentPage.appendChild(node);
+  }
+}
 
 /**
  * Create a rectangle
@@ -959,4 +1005,501 @@ export async function createSvg(params: CreateSvgParams): Promise<SvgResult> {
     height: vector.height,
     parentId: vector.parent ? vector.parent.id : undefined,
   };
+}
+
+// ==========================================================================
+// Composite commands — collapse multiple round-trips into one
+// ==========================================================================
+
+/**
+ * Create a frame with all properties in a single command.
+ * Replaces: create_frame + set_layout_positioning + set_layout_sizing
+ *           + set_gradient_fill + set_visibility
+ */
+export async function createFrameFull(
+  params: CreateFrameFullParams
+): Promise<{ id: string }> {
+  const {
+    x = 0,
+    y = 0,
+    width = 100,
+    height = 100,
+    name = "Frame",
+    parentId,
+    fillColor,
+    strokeColor,
+    strokeWeight,
+    clipsContent,
+    layoutMode = "NONE",
+    layoutWrap = "NO_WRAP",
+    paddingTop = 10,
+    paddingRight = 10,
+    paddingBottom = 10,
+    paddingLeft = 10,
+    primaryAxisAlignItems = "MIN",
+    counterAxisAlignItems = "MIN",
+    itemSpacing = 0,
+    counterAxisSpacing,
+    cornerRadius,
+    corners,
+    opacity,
+    effects,
+    layoutSizingHorizontal = "FIXED",
+    layoutSizingVertical = "FIXED",
+    positioning,
+    top,
+    left,
+    right,
+    bottom,
+    gradientType,
+    gradientStops,
+    gradientAngle = 0,
+    visible,
+  } = params;
+
+  const frame = figma.createFrame();
+  frame.x = x;
+  frame.y = y;
+  frame.resize(width, height);
+  frame.name = name;
+
+  if (clipsContent !== undefined) {
+    frame.clipsContent = clipsContent;
+  }
+
+  // Layout — always create with FIXED sizing first (Figma API bug workaround)
+  if (layoutMode !== "NONE") {
+    frame.layoutMode = layoutMode;
+    frame.layoutWrap = layoutWrap;
+    frame.paddingTop = paddingTop;
+    frame.paddingRight = paddingRight;
+    frame.paddingBottom = paddingBottom;
+    frame.paddingLeft = paddingLeft;
+    frame.primaryAxisAlignItems = primaryAxisAlignItems;
+    frame.counterAxisAlignItems = counterAxisAlignItems;
+    frame.layoutSizingHorizontal = "FIXED";
+    frame.layoutSizingVertical = "FIXED";
+    frame.itemSpacing = itemSpacing;
+    if (counterAxisSpacing !== undefined && layoutWrap === "WRAP") {
+      frame.counterAxisSpacing = counterAxisSpacing;
+    }
+  }
+
+  if (cornerRadius !== undefined) {
+    if (corners) {
+      if (corners[0]) frame.topLeftRadius = cornerRadius;
+      if (corners[1]) frame.topRightRadius = cornerRadius;
+      if (corners[2]) frame.bottomRightRadius = cornerRadius;
+      if (corners[3]) frame.bottomLeftRadius = cornerRadius;
+    } else {
+      frame.cornerRadius = cornerRadius;
+    }
+  }
+
+  if (fillColor === '__none__') {
+    frame.fills = [];
+  } else if (fillColor) {
+    frame.fills = [createSolidPaint(fillColor)];
+  }
+
+  if (strokeColor) {
+    frame.strokes = [createSolidPaint(strokeColor)];
+  }
+  if (strokeWeight !== undefined) {
+    frame.strokeWeight = strokeWeight;
+  }
+
+  if (opacity !== undefined) {
+    frame.opacity = opacity;
+  }
+
+  if (effects && Array.isArray(effects) && effects.length > 0) {
+    frame.effects = effects.map((effect: EffectConfig) => {
+      if (effect.type === "DROP_SHADOW" || effect.type === "INNER_SHADOW") {
+        return {
+          type: effect.type,
+          visible: effect.visible !== false,
+          radius: effect.radius,
+          color: effect.color
+            ? { r: effect.color.r, g: effect.color.g, b: effect.color.b, a: effect.color.a ?? 1 }
+            : { r: 0, g: 0, b: 0, a: 0.25 },
+          offset: effect.offset ?? { x: 0, y: 4 },
+          spread: effect.spread ?? 0,
+          blendMode: "NORMAL" as const,
+        };
+      } else {
+        return {
+          type: effect.type,
+          visible: effect.visible !== false,
+          radius: effect.radius,
+        } as Effect;
+      }
+    });
+  }
+
+  // Append to parent (single async call)
+  await appendToParent(frame, parentId);
+
+  // Absolute positioning (must be after appending to auto-layout parent)
+  if (positioning === "ABSOLUTE") {
+    (frame as any).layoutPositioning = "ABSOLUTE";
+
+    const hasOffsets = top !== undefined || left !== undefined || right !== undefined || bottom !== undefined;
+    if (hasOffsets) {
+      const parent = frame.parent as FrameNode;
+      const parentWidth = parent.width;
+      const parentHeight = parent.height;
+      const nodeWidth = frame.width;
+      const nodeHeight = frame.height;
+
+      const hasBothLR = typeof left === "number" && typeof right === "number";
+      const hasBothTB = typeof top === "number" && typeof bottom === "number";
+
+      if (hasBothLR) {
+        frame.x = left;
+        const newWidth = parentWidth - left - right;
+        if (newWidth > 0) frame.resize(newWidth, frame.height);
+      } else if (typeof left === "number") {
+        frame.x = left;
+      } else if (typeof right === "number") {
+        frame.x = parentWidth - nodeWidth - right;
+      }
+
+      if (hasBothTB) {
+        frame.y = top;
+        const newHeight = parentHeight - top - bottom;
+        if (newHeight > 0) frame.resize(frame.width, newHeight);
+      } else if (typeof top === "number") {
+        frame.y = top;
+      } else if (typeof bottom === "number") {
+        frame.y = parentHeight - nodeHeight - bottom;
+      }
+
+      frame.constraints = {
+        horizontal: hasBothLR ? "STRETCH" : (typeof right === "number" ? "MAX" : "MIN"),
+        vertical: hasBothTB ? "STRETCH" : (typeof bottom === "number" ? "MAX" : "MIN"),
+      };
+    }
+  }
+
+  // Non-FIXED sizing (must be after appending to parent)
+  if (layoutMode !== "NONE") {
+    if (layoutSizingHorizontal !== "FIXED") {
+      frame.layoutSizingHorizontal = layoutSizingHorizontal;
+    }
+    if (layoutSizingVertical !== "FIXED") {
+      frame.layoutSizingVertical = layoutSizingVertical;
+    }
+  }
+
+  // Gradient fill
+  if (gradientType && gradientStops && gradientStops.length >= 2) {
+    (frame as GeometryMixin).fills = [buildGradientPaint(gradientType, gradientStops, gradientAngle)];
+  }
+
+  // Visibility — must be last
+  if (visible === false) {
+    frame.visible = false;
+  }
+
+  return { id: frame.id };
+}
+
+/**
+ * Create a text node with all properties in a single command.
+ * Replaces: create_text + set_opacity + set_line_height + set_letter_spacing
+ *           + set_text_truncation + set_layout_sizing + set_gradient_fill + set_visibility
+ */
+export async function createTextFull(
+  params: CreateTextFullParams
+): Promise<{ id: string }> {
+  const {
+    x = 0,
+    y = 0,
+    width,
+    text = "Text",
+    fontSize = 14,
+    fontWeight = 400,
+    fontColor = { r: 0, g: 0, b: 0, a: 1 },
+    textAlignHorizontal = "LEFT",
+    name = "",
+    parentId,
+    opacity,
+    lineHeight,
+    lineHeightUnit = "PIXELS",
+    letterSpacing,
+    letterSpacingUnit = "PIXELS",
+    maxLines,
+    layoutSizingHorizontal,
+    layoutSizingVertical,
+    gradientType,
+    gradientStops,
+    gradientAngle = 0,
+    visible,
+  } = params;
+
+  const textNode = figma.createText();
+  textNode.x = x;
+  textNode.y = y;
+  textNode.name = name || text;
+
+  // Single font load
+  try {
+    await figma.loadFontAsync({
+      family: "Inter",
+      style: getFontStyle(fontWeight),
+    });
+    textNode.fontName = { family: "Inter", style: getFontStyle(fontWeight) };
+    textNode.fontSize = fontSize;
+  } catch (error) {
+    console.error("Error setting font size", error);
+  }
+
+  await setCharacters(textNode, text);
+
+  textNode.fills = [createSolidPaint(fontColor)];
+
+  if (width !== undefined) {
+    textNode.textAutoResize = "HEIGHT";
+    textNode.resize(width, textNode.height);
+  }
+  textNode.textAlignHorizontal = textAlignHorizontal;
+
+  // Line height (sync — no font load needed)
+  if (lineHeight !== undefined) {
+    if (lineHeight === "AUTO") {
+      textNode.lineHeight = { unit: "AUTO" };
+    } else {
+      textNode.lineHeight = { value: lineHeight, unit: lineHeightUnit };
+    }
+  }
+
+  // Letter spacing (sync)
+  if (letterSpacing !== undefined) {
+    textNode.letterSpacing = { value: letterSpacing, unit: letterSpacingUnit };
+  }
+
+  // Text truncation (sync)
+  if (maxLines !== undefined) {
+    textNode.textTruncation = "ENDING";
+    textNode.maxLines = maxLines;
+  }
+
+  if (opacity !== undefined) {
+    textNode.opacity = opacity;
+  }
+
+  await appendToParent(textNode, parentId);
+
+  // Layout sizing (after appending)
+  if (layoutSizingHorizontal && layoutSizingHorizontal !== "FIXED") {
+    textNode.layoutSizingHorizontal = layoutSizingHorizontal;
+  }
+  if (layoutSizingVertical && layoutSizingVertical !== "FIXED") {
+    textNode.layoutSizingVertical = layoutSizingVertical;
+  }
+
+  // Gradient fill
+  if (gradientType && gradientStops && gradientStops.length >= 2) {
+    (textNode as any as GeometryMixin).fills = [buildGradientPaint(gradientType, gradientStops, gradientAngle)];
+  }
+
+  // Visibility — must be last
+  if (visible === false) {
+    textNode.visible = false;
+  }
+
+  return { id: textNode.id };
+}
+
+/**
+ * Create an SVG vector with all properties in a single command.
+ * Replaces: create_svg + set_opacity + set_layout_sizing + set_visibility
+ */
+export async function createSvgFull(
+  params: CreateSvgFullParams
+): Promise<{ id: string }> {
+  const {
+    svg,
+    x = 0,
+    y = 0,
+    width,
+    height,
+    name = "SVG",
+    parentId,
+    fillColor,
+    strokeColor,
+    strokeWeight,
+    windingRule = "EVENODD",
+    opacity,
+    layoutSizingHorizontal,
+    layoutSizingVertical,
+    visible,
+  } = params;
+
+  if (!svg || typeof svg !== "string") {
+    throw new Error("svg parameter is required and must be a string");
+  }
+
+  const isSvgContent = svg.trim().startsWith("<");
+  let pathsData: string[];
+  let originalSize = { width: 24, height: 24 };
+  let detectedStyle: "stroke" | "fill" | "both" = "stroke";
+  let detectedStrokeWeight: number | null = null;
+
+  if (isSvgContent) {
+    pathsData = parseSvgPaths(svg);
+    const viewBox = parseSvgViewBox(svg);
+    if (viewBox) originalSize = viewBox;
+    detectedStyle = detectSvgStyle(svg);
+    detectedStrokeWeight = extractStrokeWidth(svg);
+  } else {
+    pathsData = [svg];
+  }
+
+  if (pathsData.length === 0) {
+    throw new Error("No valid path data found in SVG");
+  }
+
+  const vector = figma.createVector();
+  vector.name = name;
+
+  const allVertices: VectorVertex[] = [];
+  const allSegments: VectorSegment[] = [];
+  const allLoops: number[][] = [];
+
+  for (const pathData of pathsData) {
+    const network = svgPathToVectorNetwork(pathData, windingRule);
+    const vertexOffset = allVertices.length;
+    const segmentOffset = allSegments.length;
+    allVertices.push(...network.vertices);
+    for (const seg of network.segments) {
+      allSegments.push({
+        start: seg.start + vertexOffset,
+        end: seg.end + vertexOffset,
+        tangentStart: seg.tangentStart,
+        tangentEnd: seg.tangentEnd,
+      });
+    }
+    for (const region of network.regions) {
+      for (const loop of region.loops) {
+        allLoops.push(loop.map((idx) => idx + segmentOffset));
+      }
+    }
+  }
+
+  await vector.setVectorNetworkAsync({
+    vertices: allVertices,
+    segments: allSegments,
+    regions: allLoops.length > 0 ? [{ windingRule, loops: allLoops }] : undefined,
+  });
+
+  const finalStrokeWeight = strokeWeight ?? detectedStrokeWeight ?? 1.5;
+
+  if (detectedStyle === "fill" || detectedStyle === "both") {
+    if (fillColor) {
+      vector.fills = [createSolidPaint(fillColor)];
+    } else if (!strokeColor && detectedStyle === "fill") {
+      vector.fills = [createSolidPaint({ r: 0, g: 0, b: 0, a: 1 })];
+    }
+  }
+
+  if (detectedStyle === "stroke" || detectedStyle === "both" || strokeColor) {
+    if (strokeColor) {
+      vector.strokes = [createSolidPaint(strokeColor)];
+    } else if (detectedStyle === "stroke") {
+      vector.strokes = [createSolidPaint({ r: 0, g: 0, b: 0, a: 1 })];
+    }
+    vector.strokeWeight = finalStrokeWeight;
+    vector.strokeCap = "ROUND";
+    vector.strokeJoin = "ROUND";
+    if (detectedStyle === "stroke" && !fillColor) {
+      vector.fills = [];
+    }
+  }
+
+  const targetWidth = width ?? originalSize.width;
+  const targetHeight = height ?? originalSize.height;
+  if (vector.width > 0 && vector.height > 0) {
+    vector.resize(targetWidth, targetHeight);
+  }
+
+  vector.x = x;
+  vector.y = y;
+
+  if (opacity !== undefined) {
+    vector.opacity = opacity;
+  }
+
+  await appendToParent(vector, parentId);
+
+  if (layoutSizingHorizontal && layoutSizingHorizontal !== "FIXED") {
+    vector.layoutSizingHorizontal = layoutSizingHorizontal;
+  }
+  if (layoutSizingVertical && layoutSizingVertical !== "FIXED") {
+    vector.layoutSizingVertical = layoutSizingVertical;
+  }
+
+  if (visible === false) {
+    vector.visible = false;
+  }
+
+  return { id: vector.id };
+}
+
+/**
+ * Create a rectangle with all properties in a single command.
+ * Replaces: create_rectangle + set_corner_radius + set_opacity
+ *           + set_layout_sizing + set_visibility
+ */
+export async function createRectangleFull(
+  params: CreateRectangleFullParams
+): Promise<{ id: string }> {
+  const {
+    x = 0,
+    y = 0,
+    width = 100,
+    height = 100,
+    name = "Rectangle",
+    parentId,
+    fillColor,
+    cornerRadius,
+    opacity,
+    layoutSizingHorizontal,
+    layoutSizingVertical,
+    visible,
+  } = params;
+
+  const rect = figma.createRectangle();
+  rect.x = x;
+  rect.y = y;
+  rect.resize(width, height);
+  rect.name = name;
+
+  if (fillColor) {
+    rect.fills = [createSolidPaint(fillColor)];
+  }
+
+  if (cornerRadius !== undefined && cornerRadius > 0) {
+    rect.cornerRadius = cornerRadius;
+  }
+
+  if (opacity !== undefined) {
+    rect.opacity = opacity;
+  }
+
+  await appendToParent(rect, parentId);
+
+  if (layoutSizingHorizontal && layoutSizingHorizontal !== "FIXED") {
+    rect.layoutSizingHorizontal = layoutSizingHorizontal;
+  }
+  if (layoutSizingVertical && layoutSizingVertical !== "FIXED") {
+    rect.layoutSizingVertical = layoutSizingVertical;
+  }
+
+  if (visible === false) {
+    rect.visible = false;
+  }
+
+  return { id: rect.id };
 }

@@ -25,6 +25,7 @@ export interface ScanTextNodesParams extends ParamsBase {
   nodeId: string;
   useChunking?: boolean;
   chunkSize?: number;
+  highlight?: boolean;
 }
 
 /**

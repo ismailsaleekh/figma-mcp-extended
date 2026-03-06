@@ -74,6 +74,7 @@ export function svgPathToVectorNetwork(
   const commands = makeAbsolute(parseSVG(pathData)) as PathCommand[];
 
   const vertices: Vertex[] = [];
+  const vertexMap = new Map<string, number>();
   const segments: Segment[] = [];
   const loops: number[][] = [];
 
@@ -87,16 +88,16 @@ export function svgPathToVectorNetwork(
   let lastControlY = 0;
   let lastCommand = "";
 
-  // Helper: add vertex if not duplicate
+  // Helper: add vertex if not duplicate (O(1) via spatial hash)
   function addVertex(x: number, y: number): number {
-    // Check if vertex already exists at this position
-    const existing = vertices.findIndex(
-      (v) => Math.abs(v.x - x) < 0.001 && Math.abs(v.y - y) < 0.001
-    );
-    if (existing >= 0) return existing;
+    const key = `${Math.round(x * 1000)},${Math.round(y * 1000)}`;
+    const existing = vertexMap.get(key);
+    if (existing !== undefined) return existing;
 
+    const idx = vertices.length;
     vertices.push({ x, y });
-    return vertices.length - 1;
+    vertexMap.set(key, idx);
+    return idx;
   }
 
   // Helper: add segment
