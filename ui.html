@@ -392,6 +392,7 @@
 
       // Handle messages from the WebSocket
       async function handleSocketMessage(payload) {
+        console.log(`[UI] handleSocketMessage: type=${payload.type}, sender=${payload.sender}`);
         const data = payload.message;
 
         // If it's a response to a previous request
@@ -412,6 +413,7 @@
           // Support both naming conventions: external clients send commandId,
           // internal UI sendCommand sends id. Prefer commandId for external.
           const correlationId = data.commandId || data.id;
+          console.log(`[UI] Received command: ${data.command} id=${correlationId}`);
           try {
             // Send the command to the plugin code
             parent.postMessage(
@@ -425,7 +427,9 @@
               },
               "*"
             );
+            console.log(`[UI] Forwarded to plugin: ${data.command}`);
           } catch (error) {
+            console.error(`[UI] Error forwarding command: ${data.command}`, error);
             // Send error back to WebSocket
             sendErrorResponse(
               correlationId,
@@ -472,12 +476,12 @@
       // Send success response back to WebSocket
       function sendSuccessResponse(id, result) {
         if (!state.connected || !state.socket) {
-          console.error("Cannot send response: socket not connected");
+          console.error("[UI] Cannot send response: socket not connected");
           return;
         }
 
-        state.socket.send(
-          JSON.stringify({
+        try {
+          const payload = JSON.stringify({
             id,
             type: "message",
             channel: state.channel,
@@ -486,8 +490,12 @@
               commandId: id,
               result,
             },
-          })
-        );
+          });
+          console.log(`[UI] sendSuccessResponse: payload size = ${payload.length} bytes`);
+          state.socket.send(payload);
+        } catch (sendErr) {
+          console.error(`[UI] sendSuccessResponse FAILED for id=${id}:`, sendErr);
+        }
       }
 
       // Send error response back to WebSocket
@@ -641,10 +649,18 @@
             disconnectButton.click();
             break;
           case "command-result":
-            // Forward the result from plugin code back to WebSocket
-            sendSuccessResponse(message.id, message.result);
+            try {
+              const resultJson = JSON.stringify(message.result);
+              console.log(`[UI] Got command-result from plugin, id=${message.id}, result type: ${typeof message.result}, size: ${resultJson.length} bytes`);
+              // Forward the result from plugin code back to WebSocket
+              sendSuccessResponse(message.id, message.result);
+              console.log(`[UI] Sent success response to WebSocket for id=${message.id}`);
+            } catch (serializeErr) {
+              console.error(`[UI] Failed to serialize/send result for id=${message.id}:`, serializeErr);
+            }
             break;
           case "command-error":
+            console.error(`[UI] Got command-error from plugin, id=${message.id}, error: ${message.error}`);
             // Forward the error from plugin code back to WebSocket
             sendErrorResponse(message.id, message.error);
             break;

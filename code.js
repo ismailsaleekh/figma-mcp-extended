@@ -356,6 +356,31 @@
       };
     });
   }
+  function getDirectChildren(params) {
+    return __async(this, null, function* () {
+      const { nodeId } = params;
+      if (!nodeId) {
+        throw new Error("Missing nodeId parameter");
+      }
+      let node = yield figma.getNodeByIdAsync(nodeId);
+      if (!node) {
+        yield figma.loadAllPagesAsync();
+        node = yield figma.getNodeByIdAsync(nodeId);
+      }
+      if (!node) {
+        throw new Error(`Node not found with ID: ${nodeId}`);
+      }
+      if (!("children" in node)) {
+        return [];
+      }
+      return node.children.map((child) => ({
+        id: child.id,
+        name: child.name,
+        type: child.type,
+        visible: "visible" in child ? child.visible : true
+      }));
+    });
+  }
   function getNodeInfo(nodeId) {
     return __async(this, null, function* () {
       const node = yield figma.getNodeByIdAsync(nodeId);
@@ -7326,16 +7351,22 @@
             figma.closePlugin();
             break;
           case "execute-command":
+            console.log(`[PLUGIN] execute-command received: ${msg.command} id=${msg.id}`);
             commandQueue.push(() => __async(exports, null, function* () {
               try {
+                console.log(`[PLUGIN] handleCommand START: ${msg.command}`);
                 const result = yield handleCommand(msg.command, msg.params);
+                console.log(`[PLUGIN] handleCommand OK: ${msg.command}, result keys: ${result ? Object.keys(result).join(",") : "null"}`);
                 figma.ui.postMessage({
                   type: "command-result",
                   id: msg.id,
                   result
                 });
+                console.log(`[PLUGIN] postMessage command-result sent for ${msg.command}`);
               } catch (error) {
                 const err = error;
+                console.error(`[PLUGIN] handleCommand ERROR: ${msg.command}: ${err.message}`);
+                console.error(`[PLUGIN] stack: ${err.stack}`);
                 figma.ui.postMessage({
                   type: "command-error",
                   id: msg.id,
@@ -7377,6 +7408,11 @@
                 throw new Error("Missing or invalid nodeIds parameter");
               }
               return yield getNodesInfo(params.nodeIds);
+            case "get_direct_children":
+              if (!params || !hasString(params, "nodeId")) {
+                throw new Error("Missing nodeId parameter");
+              }
+              return yield getDirectChildren(params);
             case "read_my_design":
               return yield readMyDesign();
             case "create_page":
