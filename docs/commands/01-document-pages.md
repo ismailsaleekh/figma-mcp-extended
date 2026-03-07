@@ -62,6 +62,30 @@ Get currently selected nodes.
 
 ---
 
+## `get_direct_children`
+
+Get lightweight metadata for the direct children of a node. Returns only `{ id, name, type, visible }` per child — no recursive tree serialization, no `exportAsync`. Safe to call on pages with hundreds of top-level frames.
+
+**Parameters**:
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `nodeId` | string | Yes | Node ID in colon format (e.g., "998:4331") |
+
+**Returns**:
+```json
+[
+  { "id": "1234:5678", "name": "Home - Default [RU]", "type": "FRAME", "visible": true },
+  { "id": "1234:5679", "name": "Home - Loading [RU]", "type": "FRAME", "visible": true }
+]
+```
+
+**Notes**:
+- Returns `[]` for nodes without children (e.g., text, rectangles)
+- Automatically loads non-current pages if the node isn't found on the current page
+- Use this instead of `get_node_info` when you only need to list children (e.g., frame discovery on large pages). `get_node_info` uses `exportAsync` which serializes the entire subtree and can exceed WebSocket payload limits on pages with many frames.
+
+---
+
 ## `get_node_info`
 
 Get detailed information about a specific node.
@@ -72,6 +96,8 @@ Get detailed information about a specific node.
 | `nodeId` | string | Yes | Node ID in colon format (e.g., "4371:50004") |
 
 **Returns**: Full node data including fills, strokes, bounds, children
+
+**Warning**: Uses `exportAsync("JSON_REST_V1")` which serializes the full subtree. On pages with hundreds of frames, the response can be very large (20+ MB). For listing children only, use `get_direct_children` instead.
 
 ---
 

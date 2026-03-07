@@ -166,6 +166,7 @@ const results = await Promise.all(
 | No response to commands | Wrong channel ID | Get current channel ID from plugin UI |
 | `Node not found` | Using dash format | Convert `4371-50004` → `4371:50004` |
 | Query timeout | Too much data | Use chunking, reduce scope |
+| Silent drop (no response) | Response exceeds 16 MB WebSocket limit | Use `get_direct_children` instead of `get_node_info` for listing page children |
 
 ---
 
@@ -174,7 +175,8 @@ const results = await Promise.all(
 | Command | Purpose |
 |---------|---------|
 | `get_all_pages` | List all pages |
-| `get_node_info` | Get node details |
+| `get_direct_children` | List children of a node (lightweight) |
+| `get_node_info` | Get node details (full tree, heavy) |
 | `get_nodes_info` | Get multiple nodes |
 | `scan_text_nodes` | Extract text content |
 | `scan_nodes_by_types` | Find nodes by type |

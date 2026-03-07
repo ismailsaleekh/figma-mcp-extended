@@ -1,6 +1,6 @@
 # Figma MCP Extended API
 
-WebSocket-based API for programmatic access to Figma designs. **79 commands** across 14 categories.
+WebSocket-based API for programmatic access to Figma designs. **80 commands** across 14 categories.
 
 **[Connection Guide](connection.md)** | **[Color Format](reference/color-format.md)** | **[Node ID Format](reference/node-id-format.md)**
 
@@ -8,13 +8,14 @@ WebSocket-based API for programmatic access to Figma designs. **79 commands** ac
 
 ## Commands by Category
 
-### Document & Pages (8)
+### Document & Pages (9)
 
 | Command | Description |
 |---------|-------------|
 | [`get_document_info`](commands/01-document-pages.md#get_document_info) | Get current page and document info |
 | [`get_all_pages`](commands/01-document-pages.md#get_all_pages) | List all pages in document |
 | [`get_selection`](commands/01-document-pages.md#get_selection) | Get currently selected nodes |
+| [`get_direct_children`](commands/01-document-pages.md#get_direct_children) | Get lightweight child list for a node |
 | [`get_node_info`](commands/01-document-pages.md#get_node_info) | Get detailed info for a node |
 | [`get_nodes_info`](commands/01-document-pages.md#get_nodes_info) | Get info for multiple nodes |
 | [`read_my_design`](commands/01-document-pages.md#read_my_design) | Export selection as JSON structure |
@@ -165,7 +166,7 @@ WebSocket-based API for programmatic access to Figma designs. **79 commands** ac
 
 | Category | Count |
 |----------|-------|
-| Document & Pages | 8 |
+| Document & Pages | 9 |
 | Shape Creation | 12 |
 | Styling | 8 |
 | Text | 10 |
@@ -179,4 +180,4 @@ WebSocket-based API for programmatic access to Figma designs. **79 commands** ac
 | Extraction & Analysis | 7 |
 | Scanning | 1 |
 | Utility | 1 |
-| **Total** | **79** |
+| **Total** | **80** |
