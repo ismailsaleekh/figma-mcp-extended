@@ -64,6 +64,7 @@ import type {
   DeleteMultipleNodesParams,
   CreatePageParams,
   SetCurrentPageParams,
+  GetDirectChildrenParams,
   GroupNodesParams,
   UngroupNodesParams,
   SetRotationParams,
@@ -417,16 +418,22 @@ figma.ui.onmessage = (msg: UIMessage) => {
       figma.closePlugin();
       break;
     case "execute-command":
+      console.log(`[PLUGIN] execute-command received: ${msg.command} id=${msg.id}`);
       commandQueue.push(async () => {
         try {
+          console.log(`[PLUGIN] handleCommand START: ${msg.command}`);
           const result = await handleCommand(msg.command!, msg.params);
+          console.log(`[PLUGIN] handleCommand OK: ${msg.command}, result keys: ${result ? Object.keys(result as object).join(',') : 'null'}`);
           figma.ui.postMessage({
             type: "command-result",
             id: msg.id,
             result,
           });
+          console.log(`[PLUGIN] postMessage command-result sent for ${msg.command}`);
         } catch (error) {
           const err = error as Error;
+          console.error(`[PLUGIN] handleCommand ERROR: ${msg.command}: ${err.message}`);
+          console.error(`[PLUGIN] stack: ${err.stack}`);
           figma.ui.postMessage({
             type: "command-error",
             id: msg.id,
@@ -479,6 +486,11 @@ async function handleCommand(
         throw new Error("Missing or invalid nodeIds parameter");
       }
       return await documentCommands.getNodesInfo(params.nodeIds);
+    case "get_direct_children":
+      if (!params || !hasString(params, "nodeId")) {
+        throw new Error("Missing nodeId parameter");
+      }
+      return await documentCommands.getDirectChildren(params as GetDirectChildrenParams);
     case "read_my_design":
       return await documentCommands.readMyDesign();
     case "create_page":

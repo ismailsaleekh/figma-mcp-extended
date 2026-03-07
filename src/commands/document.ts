@@ -1,7 +1,7 @@
 // src/commands/document.ts
 
 import { filterFigmaNode } from "../helpers/nodes";
-import type { BasicNodeInfo, FilteredNode, CreatePageParams, SetCurrentPageParams } from "../types";
+import type { BasicNodeInfo, FilteredNode, CreatePageParams, SetCurrentPageParams, GetDirectChildrenParams } from "../types";
 
 interface DocumentInfo {
   name: string;
@@ -136,6 +136,47 @@ export async function getSelection(): Promise<SelectionInfo> {
       visible: node.visible,
     })),
   };
+}
+
+/**
+ * Get direct children of a node as lightweight metadata.
+ *
+ * Returns only { id, name, type, visible } per child — no recursive
+ * tree serialization, no exportAsync. Safe to call on pages with
+ * hundreds of top-level frames.
+ *
+ * For page nodes that are not the current page, loads all pages first
+ * so the node is accessible via getNodeByIdAsync.
+ */
+export async function getDirectChildren(params: GetDirectChildrenParams): Promise<BasicNodeInfo[]> {
+  const { nodeId } = params;
+
+  if (!nodeId) {
+    throw new Error("Missing nodeId parameter");
+  }
+
+  let node = await figma.getNodeByIdAsync(nodeId);
+
+  // If the node wasn't found, it may be on a non-loaded page
+  if (!node) {
+    await figma.loadAllPagesAsync();
+    node = await figma.getNodeByIdAsync(nodeId);
+  }
+
+  if (!node) {
+    throw new Error(`Node not found with ID: ${nodeId}`);
+  }
+
+  if (!("children" in node)) {
+    return [];
+  }
+
+  return (node as ChildrenMixin).children.map((child) => ({
+    id: child.id,
+    name: child.name,
+    type: child.type,
+    visible: "visible" in child ? (child as SceneNode).visible : true,
+  }));
 }
 
 /**

@@ -16,3 +16,10 @@ export interface CreatePageParams extends ParamsBase {
 export interface SetCurrentPageParams extends ParamsBase {
   pageId: string;
 }
+
+/**
+ * Get direct children parameters
+ */
+export interface GetDirectChildrenParams extends ParamsBase {
+  nodeId: string;
+}
